@@ -135,12 +135,13 @@ class PaneViewController: NSViewController {
         }
     }
 
-    /// Find a terminal tab by its UUID and send text to it.
+    /// Find a terminal tab by its UUID (or prefix) and send text to it.
     func sendTextToTab(tabId: String, text: String) -> Bool {
+        let needle = tabId.uppercased()
         for tab in tabs {
             if tab.kind == .terminal,
                let vc = tab.viewController as? TerminalTabViewController,
-               vc.tabId.uuidString == tabId {
+               vc.tabId.uuidString.hasPrefix(needle) {
                 vc.sendText(text)
                 return true
             }

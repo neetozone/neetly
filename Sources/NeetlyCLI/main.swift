@@ -40,7 +40,12 @@ case "send":
     }
     payload["action"] = "tab.send"
     payload["tabId"] = args[2]
-    payload["text"] = args[3...].joined(separator: " ")
+    let rawText = args[3...].joined(separator: " ")
+    // Convert escape sequences: \n → newline, \t → tab
+    payload["text"] = rawText
+        .replacingOccurrences(of: "\\n", with: "\n")
+        .replacingOccurrences(of: "\\t", with: "\t")
+    expectResponse = true
 
 case "visit":
     guard args.count >= 3 else {
@@ -73,8 +78,30 @@ guard let data = try? JSONSerialization.data(withJSONObject: payload) else {
 let response = sendToSocket(socketPath: socketPath, data: data, expectResponse: expectResponse)
 
 // Handle response
-if action == "tabs", let response = response {
-    printTabList(response)
+switch action {
+case "tabs":
+    if let response = response {
+        printTabList(response)
+    } else {
+        fputs("No response from neetly1. Is the app running?\n", stderr)
+    }
+
+case "send":
+    if let response = response,
+       let json = try? JSONSerialization.jsonObject(with: response) as? [String: Any] {
+        if json["ok"] as? Bool == true {
+            print("Sent to \(args[2])")
+        } else {
+            let err = json["error"] as? String ?? "unknown error"
+            fputs("Error: \(err)\n", stderr)
+            exit(1)
+        }
+    } else {
+        fputs("No response from neetly1.\n", stderr)
+    }
+
+default:
+    break
 }
 
 // MARK: - Helpers
@@ -108,16 +135,15 @@ func printTabList(_ data: Data) {
     }
 
     // Print header
-    let idW = 8  // show short IDs
-    print(String(format: "%-\(idW)s  %-10s  %-8s  %s", "TAB", "PANE", "TYPE", "TITLE"))
+    print("TAB       PANE       TYPE      TITLE")
     print(String(repeating: "-", count: 60))
 
     for tab in tabs {
-        let shortTab = String(tab.tabId.prefix(8))
-        let shortPane = String(tab.paneId.prefix(8))
+        let shortTab = tab.tabId.prefix(8).padding(toLength: 8, withPad: " ", startingAt: 0)
+        let shortPane = tab.paneId.prefix(8).padding(toLength: 8, withPad: " ", startingAt: 0)
+        let type = tab.type.padding(toLength: 8, withPad: " ", startingAt: 0)
         let active = tab.isActive ? " *" : ""
-        print(String(format: "%-\(idW)s  %-10s  %-8s  %s%s",
-                      shortTab, shortPane, tab.type, tab.title, active))
+        print("\(shortTab)  \(shortPane)  \(type)  \(tab.title)\(active)")
     }
 }
 
@@ -151,6 +177,10 @@ func sendToSocket(socketPath: String, data: Data, expectResponse: Bool) -> Data?
         exit(1)
     }
 
+    // Set a read timeout so we don't hang forever
+    var tv = timeval(tv_sec: 5, tv_usec: 0)
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+
     // Send command
     data.withUnsafeBytes { bytes in
         _ = write(fd, bytes.baseAddress!, data.count)
@@ -169,9 +199,7 @@ func sendToSocket(socketPath: String, data: Data, expectResponse: Bool) -> Data?
             if n <= 0 { break }
             respData.append(contentsOf: buffer[0..<n])
         }
-        if !respData.isEmpty {
-            response = respData
-        }
+        response = respData.isEmpty ? nil : respData
     }
 
     close(fd)

@@ -75,18 +75,23 @@ class WorkspaceWindowController: NSWindowController {
             return try? JSONEncoder().encode(allTabs)
 
         case "tab.send":
-            guard let tabId = command.tabId, let text = command.text else { return nil }
+            guard let tabId = command.tabId, let text = command.text else {
+                return jsonResponse(["ok": false, "error": "missing tabId or text"])
+            }
             for pane in splitTree.paneControllers.values {
                 if pane.sendTextToTab(tabId: tabId, text: text) {
-                    return nil
+                    return jsonResponse(["ok": true])
                 }
             }
-            NSLog("tab.send: tab \(command.tabId ?? "nil") not found")
-            return nil
+            return jsonResponse(["ok": false, "error": "tab not found: \(tabId)"])
 
         default:
             NSLog("Unknown socket command: \(command.action)")
             return nil
         }
+    }
+
+    private func jsonResponse(_ dict: [String: Any]) -> Data? {
+        try? JSONSerialization.data(withJSONObject: dict)
     }
 }

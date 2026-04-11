@@ -12,7 +12,6 @@ class SocketServer {
     }
 
     func start() {
-        // Remove stale socket
         unlink(socketPath)
 
         serverFd = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -48,7 +47,6 @@ class SocketServer {
 
         NSLog("SocketServer: listening on \(socketPath)")
 
-        // Accept loop on background thread
         DispatchQueue.global(qos: .utility).async { [weak self] in
             while let self = self, self.serverFd >= 0 {
                 let clientFd = accept(self.serverFd, nil, nil)
@@ -59,6 +57,7 @@ class SocketServer {
     }
 
     private func handleClient(_ fd: Int32) {
+        // Read request — client sends JSON then shutdown(SHUT_WR)
         var data = Data()
         var buffer = [UInt8](repeating: 0, count: 4096)
         while true {
@@ -68,32 +67,38 @@ class SocketServer {
         }
 
         guard !data.isEmpty else {
-            close(fd)
+            Darwin.close(fd)
             return
         }
 
-        do {
-            let command = try JSONDecoder().decode(SocketCommand.self, from: data)
-            // Dispatch to main thread, wait for response, write it back
-            let semaphore = DispatchSemaphore(value: 0)
-            var response: Data?
-            DispatchQueue.main.async { [weak self] in
-                response = self?.onCommand?(command)
-                semaphore.signal()
-            }
-            semaphore.wait()
-
-            // Write response if any
-            if let resp = response {
-                resp.withUnsafeBytes { bytes in
-                    _ = write(fd, bytes.baseAddress!, resp.count)
-                }
-            }
-        } catch {
-            NSLog("SocketServer: failed to decode command: \(error)")
+        guard let command = try? JSONDecoder().decode(SocketCommand.self, from: data) else {
+            NSLog("SocketServer: failed to decode: \(String(data: data, encoding: .utf8) ?? "?")")
+            Darwin.close(fd)
+            return
         }
 
-        close(fd)
+        // Dispatch to main thread for handler, wait for result
+        let semaphore = DispatchSemaphore(value: 0)
+        var response: Data?
+        DispatchQueue.main.async { [weak self] in
+            response = self?.onCommand?(command)
+            semaphore.signal()
+        }
+        semaphore.wait()
+
+        // Write response back to client
+        if let resp = response, !resp.isEmpty {
+            var written = 0
+            while written < resp.count {
+                let n = resp.withUnsafeBytes { bytes in
+                    write(fd, bytes.baseAddress! + written, resp.count - written)
+                }
+                if n <= 0 { break }
+                written += n
+            }
+        }
+
+        Darwin.close(fd)
     }
 
     func environmentForPane(_ paneId: UUID) -> [String: String] {

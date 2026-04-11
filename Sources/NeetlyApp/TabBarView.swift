@@ -6,9 +6,13 @@ class TabBarView: NSView {
     var onCloseTab: ((Int) -> Void)?
     var onNewTerminal: (() -> Void)?
     var onNewBrowser: (() -> Void)?
+    var onSplitColumns: (() -> Void)?
+    var onSplitRows: (() -> Void)?
     private var buttons: [NSView] = []
     private let newTerminalButton = NSButton()
     private let newBrowserButton = NSButton()
+    private let splitColButton = NSButton()
+    private let splitRowButton = NSButton()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -35,8 +39,38 @@ class TabBarView: NSView {
         newBrowserButton.translatesAutoresizingMaskIntoConstraints = false
         addSubview(newBrowserButton)
 
+        // Split columns button
+        splitColButton.image = NSImage(systemSymbolName: "rectangle.split.1x2", accessibilityDescription: "Split Columns")
+        splitColButton.toolTip = "Split Columns"
+        splitColButton.bezelStyle = .recessed
+        splitColButton.imagePosition = .imageOnly
+        splitColButton.target = self
+        splitColButton.action = #selector(splitColClicked)
+        splitColButton.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(splitColButton)
+
+        // Split rows button
+        splitRowButton.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Split Rows")
+        splitRowButton.toolTip = "Split Rows"
+        splitRowButton.bezelStyle = .recessed
+        splitRowButton.imagePosition = .imageOnly
+        splitRowButton.target = self
+        splitRowButton.action = #selector(splitRowClicked)
+        splitRowButton.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(splitRowButton)
+
         NSLayoutConstraint.activate([
-            newBrowserButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            splitRowButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            splitRowButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            splitRowButton.widthAnchor.constraint(equalToConstant: 28),
+            splitRowButton.heightAnchor.constraint(equalToConstant: 22),
+
+            splitColButton.trailingAnchor.constraint(equalTo: splitRowButton.leadingAnchor, constant: -2),
+            splitColButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            splitColButton.widthAnchor.constraint(equalToConstant: 28),
+            splitColButton.heightAnchor.constraint(equalToConstant: 22),
+
+            newBrowserButton.trailingAnchor.constraint(equalTo: splitColButton.leadingAnchor, constant: -6),
             newBrowserButton.centerYAnchor.constraint(equalTo: centerYAnchor),
             newBrowserButton.widthAnchor.constraint(equalToConstant: 28),
             newBrowserButton.heightAnchor.constraint(equalToConstant: 22),
@@ -75,6 +109,14 @@ class TabBarView: NSView {
 
     @objc private func newBrowserClicked() {
         onNewBrowser?()
+    }
+
+    @objc private func splitColClicked() {
+        onSplitColumns?()
+    }
+
+    @objc private func splitRowClicked() {
+        onSplitRows?()
     }
 
     override func draw(_ dirtyRect: NSRect) {

@@ -1,4 +1,4 @@
-# neetly1
+# neetly
 
 A terminal multiplexer with browser panes, built on SwiftTerm and WKWebView.
 
@@ -15,37 +15,36 @@ ln -sf $(pwd)/.build/arm64-apple-macosx/debug/neetly /usr/local/bin/neetly
 ## Run
 
 ```bash
-swift run neetly1
+swift run neetly-app
 ```
 
-On first launch, add a repo and configure its default layout. Repos are persisted at `~/.config/neetly1/repos.json`.
+On first launch, add a repo and configure its default layout. Repos are persisted at `~/.config/neetly/repos.json`.
 
 ## Layout Config
 
-Declarative pane layout using `split`, `run`, and `visit`:
+Declarative pane layout using `split`, `tabs`, `run`, and `visit`:
 
 ```yaml
 split: columns
 left:
-  run: claude
+  run: claude --dangerously-skip-permissions
 right:
-  split: rows
-  top:
-    run: bin/launch
-  bottom:
-    visit: https://neeto.com
+  tabs:
+    run: bin/setup;bin/launch --neetly
+    visit: http://localhost:3000
 ```
 
 | Key | Value | Children |
 |---|---|---|
 | `split` | `columns` | `left:` and `right:` |
 | `split` | `rows` | `top:` and `bottom:` |
+| `tabs` | — | Multiple `run`/`visit` as tabs in one pane |
 | `run` | `<command>` | Terminal tab |
 | `visit` | `<url>` | Browser tab |
 
 ## CLI Commands
 
-The `neetly` CLI runs from inside any terminal spawned by neetly1. It communicates with the app via a Unix domain socket.
+The `neetly` CLI runs from inside any terminal spawned by neetly. It communicates with the app via a Unix domain socket.
 
 ### List tabs
 
@@ -58,6 +57,7 @@ TAB  PANE  TYPE      TITLE
 --------------------------------------------------
 1    1     terminal  claude *
 2    2     terminal  bin/launch *
+3    2     browser   localhost *
 ```
 
 ### Open a browser tab
@@ -97,21 +97,24 @@ neetly run "npm test"
 |---|---|
 | Cmd+T | New terminal tab in focused pane |
 | Cmd+Shift+T | New browser tab in focused pane |
+| Cmd+W | Close active tab |
+| Cmd+K | Clear terminal |
+| Cmd+R | Reload browser |
 | Cmd+Shift+] | Next tab |
 | Cmd+Shift+[ | Previous tab |
 
 ## Taxonomy
 
 ```
-Workspace (one per session, named after your feature/bug)
-  Window (the macOS window)
-    Pane (a rectangular region, split horizontally or vertically)
-      Tab (terminal or browser — multiple per pane, one visible at a time)
+Workspace (named after your feature/bug, multiple per window)
+  Pane (a rectangular region, split horizontally or vertically)
+    Tab (terminal or browser — multiple per pane, one visible at a time)
 ```
 
 ## Architecture
 
 - **Terminal**: [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) (upgrade path to libghostty for GPU rendering)
 - **Browser**: WKWebView (native macOS WebKit, zero dependencies)
-- **IPC**: Unix domain socket at `/tmp/neetly1-<pid>.sock`
-- **Persistence**: `~/.config/neetly1/repos.json`
+- **IPC**: Unix domain socket at `/tmp/neetly-<pid>.sock`
+- **Persistence**: `~/.config/neetly/repos.json`
+- **File watcher**: Polls for frontend file changes, auto-reloads browser tabs

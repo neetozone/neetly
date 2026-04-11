@@ -277,7 +277,7 @@ class WorkspaceWindowController: NSWindowController {
 
         if workspaces.isEmpty {
             activeIndex = -1
-            window?.title = "neetly1"
+            window?.title = "neetly"
             onNewWorkspace?()
         } else {
             activeIndex = min(activeIndex, workspaces.count - 1)

@@ -5,7 +5,7 @@ class RepoStore {
 
     private let configDir: URL = {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        return home.appendingPathComponent(".config/neetly1")
+        return home.appendingPathComponent(".config/neetly")
     }()
 
     private var configFile: URL {

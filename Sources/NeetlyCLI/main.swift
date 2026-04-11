@@ -1,6 +1,6 @@
 import Foundation
 
-// neetly CLI — companion tool for neetly1
+// neetly CLI — companion tool for neetly
 //
 // Usage:
 //   neetly tabs                     — list all tabs
@@ -11,7 +11,7 @@ import Foundation
 let env = ProcessInfo.processInfo.environment
 
 guard let socketPath = env["NEETLY_SOCKET"] else {
-    fputs("Error: NEETLY_SOCKET not set. Are you running inside neetly1?\n", stderr)
+    fputs("Error: NEETLY_SOCKET not set. Are you running inside neetly?\n", stderr)
     exit(1)
 }
 
@@ -98,7 +98,7 @@ case "tabs":
     if let response = response {
         printTabList(response)
     } else {
-        fputs("No response from neetly1. Is the app running?\n", stderr)
+        fputs("No response from neetly. Is the app running?\n", stderr)
     }
 
 case "send":
@@ -112,7 +112,7 @@ case "send":
             exit(1)
         }
     } else {
-        fputs("No response from neetly1.\n", stderr)
+        fputs("No response from neetly.\n", stderr)
     }
 
 default:
@@ -215,7 +215,7 @@ func sendToSocket(socketPath: String, data: Data, expectResponse: Bool) -> Data?
     }
 
     guard connectResult == 0 else {
-        fputs("Error: could not connect to neetly1 at \(socketPath)\n", stderr)
+        fputs("Error: could not connect to neetly at \(socketPath)\n", stderr)
         fputs("       \(String(cString: strerror(errno)))\n", stderr)
         close(fd)
         exit(1)

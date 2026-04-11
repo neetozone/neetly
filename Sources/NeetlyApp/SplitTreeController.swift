@@ -78,7 +78,49 @@ class SplitTreeController: NSViewController {
         let pane = PaneViewController(repoPath: repoPath, socketServer: socketServer)
         addChild(pane)
         paneControllers[pane.paneId] = pane
+        pane.onSplit = { [weak self, weak pane] direction in
+            guard let self, let pane else { return }
+            self.splitPane(pane, direction: direction)
+        }
         return pane
+    }
+
+    /// Split an existing pane into two. The original stays on one side,
+    /// a new empty terminal pane appears on the other.
+    func splitPane(_ pane: PaneViewController, direction: SplitDirection) {
+        let oldView = pane.view
+        guard let parent = oldView.superview else { return }
+
+        // Create new pane
+        let newPane = makePaneController()
+        newPane.addTerminalTab(command: "")
+
+        // Create split view
+        let splitView = NSSplitView()
+        splitView.isVertical = (direction == .columns)
+        splitView.dividerStyle = .thin
+        splitView.frame = oldView.frame
+        splitView.autoresizingMask = oldView.autoresizingMask
+
+        // Replace old view with split view
+        parent.replaceSubview(oldView, with: splitView)
+
+        // Add both panes to the split
+        oldView.autoresizingMask = [.width, .height]
+        newPane.view.autoresizingMask = [.width, .height]
+        splitView.addArrangedSubview(oldView)
+        splitView.addArrangedSubview(newPane.view)
+
+        // Equal split
+        DispatchQueue.main.async {
+            let half = splitView.isVertical
+                ? splitView.bounds.width / 2
+                : splitView.bounds.height / 2
+            splitView.setPosition(half, ofDividerAt: 0)
+        }
+
+        // Trigger viewDidAppear for the new pane's terminal
+        newPane.view.window?.makeFirstResponder(newPane.view)
     }
 
     /// Find a pane controller by its UUID string.

@@ -2,16 +2,16 @@
 import PackageDescription
 
 let package = Package(
-    name: "neetly1",
+    name: "neetly",
     platforms: [.macOS(.v14)],
     dependencies: [
         .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", from: "1.5.0"),
     ],
     targets: [
         .executableTarget(
-            name: "neetly1",
+            name: "neetly-app",
             dependencies: ["SwiftTerm"],
-            path: "Sources/Neetly1",
+            path: "Sources/NeetlyApp",
             linkerSettings: [
                 .linkedFramework("WebKit"),
             ]

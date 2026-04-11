@@ -8,7 +8,7 @@ class SocketServer {
 
     init() {
         let pid = ProcessInfo.processInfo.processIdentifier
-        socketPath = "/tmp/neetly1-\(pid).sock"
+        socketPath = "/tmp/neetly-\(pid).sock"
     }
 
     func start() {

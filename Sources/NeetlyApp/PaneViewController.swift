@@ -11,6 +11,8 @@ class PaneViewController: NSViewController {
     private let contentView = NSView()
     let repoPath: String
     let socketServer: SocketServer
+    /// Called when user clicks split column/row button. SplitTreeController sets this.
+    var onSplit: ((SplitDirection) -> Void)?
 
     /// Environment dict with this pane's own ID baked in
     var socketEnvironment: [String: String] {
@@ -42,6 +44,12 @@ class PaneViewController: NSViewController {
         }
         tabBar.onNewBrowser = { [weak self] in
             self?.addBrowserTab(url: "")
+        }
+        tabBar.onSplitColumns = { [weak self] in
+            self?.onSplit?(.columns)
+        }
+        tabBar.onSplitRows = { [weak self] in
+            self?.onSplit?(.rows)
         }
         container.addSubview(tabBar)
 

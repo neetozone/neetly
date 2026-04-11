@@ -1,0 +1,33 @@
+#!/bin/bash
+set -euo pipefail
+
+REPO="neerajsingh0101/neetly"
+
+# Get the latest release tag and bump the patch version
+LATEST=$(gh release list --repo "$REPO" --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "v0.0.0")
+echo "Current version: $LATEST"
+
+# Parse version numbers
+VERSION="${LATEST#v}"
+IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+PATCH=$((PATCH + 1))
+NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+
+echo "New version: $NEW_TAG"
+
+# Build DMG
+echo ""
+echo "==> Building release..."
+bash scripts/build-dmg.sh
+
+# Create GitHub release
+echo ""
+echo "==> Creating GitHub release $NEW_TAG..."
+gh release create "$NEW_TAG" neetly-macos.dmg \
+    --repo "$REPO" \
+    --title "neetly $NEW_TAG" \
+    --notes "Release $NEW_TAG" \
+    --latest
+
+echo ""
+echo "==> Released: https://github.com/$REPO/releases/tag/$NEW_TAG"

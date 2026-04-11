@@ -2,19 +2,27 @@
 
 A terminal multiplexer with browser panes, built on SwiftTerm and WKWebView.
 
+[**Download for macOS**](https://github.com/neerajsingh0101/neetly/releases/latest/download/neetly-macos.dmg)
+
 ## Install
 
+### DMG (recommended)
+
+1. Download [neetly-macos.dmg](https://github.com/neerajsingh0101/neetly/releases/latest/download/neetly-macos.dmg)
+2. Open the DMG and drag `neetly.app` to Applications
+3. Open neetly from Applications
+
+### Build from source
+
 ```bash
-# Build
+git clone https://github.com/neerajsingh0101/neetly.git
+cd neetly
 swift build
 
 # Symlink the CLI to your PATH
 ln -sf $(pwd)/.build/arm64-apple-macosx/debug/neetly /usr/local/bin/neetly
-```
 
-## Run
-
-```bash
+# Run
 swift run neetly-app
 ```
 

@@ -81,6 +81,12 @@ class PaneViewController: NSViewController {
             repoPath: repoPath,
             environment: socketEnvironment
         )
+        vc.onProcessExited = { [weak self, weak vc] in
+            guard let self, let vc else { return }
+            if let idx = self.tabs.firstIndex(where: { $0.viewController === vc }) {
+                self.closeTab(at: idx)
+            }
+        }
         addChild(vc)
         tabs.append((kind: .terminal, viewController: vc))
         selectTab(at: tabs.count - 1)

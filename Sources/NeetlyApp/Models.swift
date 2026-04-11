@@ -18,6 +18,7 @@ indirect enum LayoutNode {
 
 struct WorkspaceConfig {
     let repoPath: String
+    let repoName: String
     let workspaceName: String
     let layout: LayoutNode
     let autoReloadOnFileChange: Bool
@@ -30,18 +31,34 @@ struct RepoConfig: Codable, Identifiable {
     let path: String
     let name: String
     let layoutText: String
+    let pullMainBeforeWork: Bool
 
-    init(path: String, layoutText: String) {
+    enum CodingKeys: String, CodingKey {
+        case id, path, name, layoutText, pullMainBeforeWork
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        path = try c.decode(String.self, forKey: .path)
+        name = try c.decode(String.self, forKey: .name)
+        layoutText = try c.decode(String.self, forKey: .layoutText)
+        pullMainBeforeWork = try c.decodeIfPresent(Bool.self, forKey: .pullMainBeforeWork) ?? true
+    }
+
+    init(path: String, layoutText: String, pullMainBeforeWork: Bool = true) {
         self.id = UUID()
         self.path = path
         self.name = URL(fileURLWithPath: path).lastPathComponent
         self.layoutText = layoutText
+        self.pullMainBeforeWork = pullMainBeforeWork
     }
 
-    init(id: UUID, path: String, name: String, layoutText: String) {
+    init(id: UUID, path: String, name: String, layoutText: String, pullMainBeforeWork: Bool = true) {
         self.id = id
         self.path = path
         self.name = name
+        self.pullMainBeforeWork = pullMainBeforeWork
         self.layoutText = layoutText
     }
 }

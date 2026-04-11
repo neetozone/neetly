@@ -1,7 +1,7 @@
 import AppKit
 import SwiftTerm
 
-class TerminalTabViewController: NSViewController {
+class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDelegate {
     let tabId = UUID()
     let seqId = SeqCounter.shared.nextId()
     let command: String
@@ -9,6 +9,8 @@ class TerminalTabViewController: NSViewController {
     let environment: [String: String]
     private var terminalView: LocalProcessTerminalView!
     private var hasStarted = false
+    /// Called when the shell process exits (e.g. user types `exit`).
+    var onProcessExited: (() -> Void)?
 
     init(command: String, repoPath: String, environment: [String: String]) {
         self.command = command
@@ -51,6 +53,7 @@ class TerminalTabViewController: NSViewController {
             env.append("PATH=\(execDir):\(existingPath)")
         }
 
+        terminalView.processDelegate = self
         terminalView.startProcess(executable: shell, args: ["-l"], environment: env)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -75,4 +78,16 @@ class TerminalTabViewController: NSViewController {
         let bytes = Array(text.utf8)
         terminalView.send(data: bytes[...])
     }
+
+    // MARK: - LocalProcessTerminalViewDelegate
+
+    func processTerminated(source: TerminalView, exitCode: Int32?) {
+        DispatchQueue.main.async { [weak self] in
+            self?.onProcessExited?()
+        }
+    }
+
+    func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
+    func setTerminalTitle(source: LocalProcessTerminalView, title: String) {}
+    func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
 }

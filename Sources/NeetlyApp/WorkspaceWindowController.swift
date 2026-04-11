@@ -300,9 +300,8 @@ class WorkspaceWindowController: NSWindowController {
     }
 
     private func refreshTabBar() {
-        let repoName = { (path: String) in URL(fileURLWithPath: path).lastPathComponent }
         let tabs = workspaces.enumerated().map { (i, ws) in
-            (repoName: repoName(ws.config.repoPath), workspaceName: ws.config.workspaceName, isActive: i == activeIndex, statusColor: ws.statusColor)
+            (repoName: ws.config.repoName, workspaceName: ws.config.workspaceName, isActive: i == activeIndex, statusColor: ws.statusColor)
         }
         workspaceTabBar.update(workspaces: tabs)
     }

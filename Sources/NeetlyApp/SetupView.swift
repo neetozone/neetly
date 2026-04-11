@@ -51,12 +51,15 @@ struct SetupView: View {
         case .workspaceName(let repo):
             WorkspaceNameScreen(
                 repo: repo,
-                onStart: { workspaceName, layoutText, autoReload in
+                onStart: { workspaceName, layoutText, autoReload, worktreePath in
                     let parser = LayoutParser()
                     let dedented = dedent(layoutText)
                     guard let layout = parser.parse(dedented) else { return }
+
+                    NSLog("Workspace: using repoPath = \(worktreePath)")
                     let config = WorkspaceConfig(
-                        repoPath: repo.path,
+                        repoPath: worktreePath,
+                        repoName: repo.name,
                         workspaceName: workspaceName,
                         layout: layout,
                         autoReloadOnFileChange: autoReload
@@ -124,7 +127,7 @@ struct RepoListScreen: View {
                                             .font(.system(size: 24, weight: .semibold))
                                         Menu {
                                             Button(action: { onEditLayout(repo) }) {
-                                                Label("Change Layout", systemImage: "rectangle.split.3x1")
+                                                Label("Settings", systemImage: "gearshape")
                                             }
                                             Divider()
                                             Button(role: .destructive, action: {
@@ -178,6 +181,7 @@ struct AddRepoScreen: View {
         right:
           run: bin/setup-mise;bin/launch --neetly
         """
+    @State private var pullMain: Bool = true
     @State private var errorMessage: String?
     var onAdd: (RepoConfig) -> Void
     var onCancel: () -> Void
@@ -199,6 +203,12 @@ struct AddRepoScreen: View {
                     .textFieldStyle(.roundedBorder)
                 Button("Browse...") { pickRepo() }
             }
+
+            Toggle(isOn: $pullMain) {
+                Text("Always start work from the main branch and always do a git pull on main branch before starting the work.")
+                    .font(.system(size: 13))
+            }
+            .padding(.top, 8)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Default Layout")
@@ -242,7 +252,7 @@ struct AddRepoScreen: View {
             errorMessage = "Please select a repository."
             return
         }
-        let repo = RepoConfig(path: repoPath, layoutText: layoutConfig)
+        let repo = RepoConfig(path: repoPath, layoutText: layoutConfig, pullMainBeforeWork: pullMain)
         onAdd(repo)
     }
 }
@@ -254,8 +264,11 @@ struct WorkspaceNameScreen: View {
     @State private var workspaceName: String = ""
     @State private var layoutText: String = ""
     @State private var autoReload: Bool = true
+    @State private var isLoading: Bool = false
+    @State private var errorMessage: String?
     @FocusState private var isNameFocused: Bool
-    var onStart: (String, String, Bool) -> Void
+    /// (workspaceName, layoutText, autoReload, worktreePath)
+    var onStart: (String, String, Bool, String) -> Void
     var onBack: () -> Void
 
     var body: some View {
@@ -281,10 +294,8 @@ struct WorkspaceNameScreen: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 19))
                     .focused($isNameFocused)
-                    .onSubmit {
-                        let name = workspaceName.isEmpty ? "default" : workspaceName
-                        onStart(name, layoutText, autoReload)
-                    }
+                    .onSubmit { startWorkspace() }
+                    .disabled(isLoading)
                 Text("A workspace name could be the feature name or the GitHub issue number you are working on.")
                     .font(.system(size: 16))
                     .foregroundColor(.secondary)
@@ -313,15 +324,27 @@ struct WorkspaceNameScreen: View {
 
             Spacer()
 
+            if let error = errorMessage {
+                Text(error)
+                    .font(.system(size: 13))
+                    .foregroundColor(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack {
                 Spacer()
-                Button("Start") {
-                    let name = workspaceName.isEmpty ? "default" : workspaceName
-                    onStart(name, layoutText, autoReload)
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Creating worktree...")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                } else {
+                    Button("Start") { startWorkspace() }
+                        .keyboardShortcut(.return)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
                 }
-                .keyboardShortcut(.return)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
             }
             .padding(.bottom, 8)
         }
@@ -332,6 +355,30 @@ struct WorkspaceNameScreen: View {
             layoutText = repo.layoutText
         }
     }
+
+    private func startWorkspace() {
+        guard !isLoading else { return }
+        errorMessage = nil
+        isLoading = true
+        let name = workspaceName.isEmpty ? "default" : workspaceName
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            // Create git worktree (runs git checkout, pull, worktree add)
+            let git = GitWorktree(repoPath: repo.path)
+            let result = git.createWorktree(workspaceName: name, pullMain: repo.pullMainBeforeWork)
+
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let path):
+                    // Pass worktree path to onStart
+                    onStart(name, layoutText, autoReload, path)
+                case .failure(let message):
+                    errorMessage = message
+                    isLoading = false
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Screen 4: Edit Layout
@@ -339,6 +386,7 @@ struct WorkspaceNameScreen: View {
 struct EditLayoutScreen: View {
     let repo: RepoConfig
     @State private var layoutText: String = ""
+    @State private var pullMain: Bool = true
     var onSave: (RepoConfig) -> Void
     var onCancel: () -> Void
 
@@ -355,6 +403,12 @@ struct EditLayoutScreen: View {
             Text(repo.name)
                 .font(.system(size: 29, weight: .bold, design: .monospaced))
 
+            Toggle(isOn: $pullMain) {
+                Text("Always start work from the main branch and always do a git pull on main branch before starting the work.")
+                    .font(.system(size: 13))
+            }
+            .padding(.top, 8)
+
             Text("Default Layout")
                 .font(.system(size: 18, weight: .semibold))
 
@@ -365,7 +419,7 @@ struct EditLayoutScreen: View {
             HStack {
                 Spacer()
                 Button("Save") {
-                    let updated = RepoConfig(id: repo.id, path: repo.path, name: repo.name, layoutText: layoutText)
+                    let updated = RepoConfig(id: repo.id, path: repo.path, name: repo.name, layoutText: layoutText, pullMainBeforeWork: pullMain)
                     onSave(updated)
                 }
                 .keyboardShortcut(.return)
@@ -376,7 +430,10 @@ struct EditLayoutScreen: View {
         }
         .padding(24)
         .frame(minWidth: 600, minHeight: 400)
-        .onAppear { layoutText = repo.layoutText }
+        .onAppear {
+            layoutText = repo.layoutText
+            pullMain = repo.pullMainBeforeWork
+        }
     }
 }
 

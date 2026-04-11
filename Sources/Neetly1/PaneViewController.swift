@@ -143,6 +143,11 @@ class PaneViewController: NSViewController {
 
     func tabCount() -> Int { tabs.count }
 
+    func activeTerminalTab() -> TerminalTabViewController? {
+        guard activeTabIndex >= 0 && activeTabIndex < tabs.count else { return nil }
+        return tabs[activeTabIndex].viewController as? TerminalTabViewController
+    }
+
     func activeBrowserTab() -> BrowserTabViewController? {
         guard activeTabIndex >= 0 && activeTabIndex < tabs.count else { return nil }
         return tabs[activeTabIndex].viewController as? BrowserTabViewController

@@ -3,7 +3,6 @@ import AppKit
 class AppDelegate: NSObject, NSApplicationDelegate {
     var setupWindowController: SetupWindowController?
     var workspaceWindowController: WorkspaceWindowController?
-    var socketServer: SocketServer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
@@ -11,6 +10,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showSetupWindow() {
+        // Always create fresh so it starts from repo list
         setupWindowController = SetupWindowController()
         setupWindowController?.onLaunch = { [weak self] config in
             self?.launchWorkspace(config)
@@ -20,19 +20,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func launchWorkspace(_ config: WorkspaceConfig) {
-        // Start socket server
-        socketServer = SocketServer()
-        socketServer?.start()
-
-        // Close setup window, open workspace
         setupWindowController?.close()
-        setupWindowController = nil
 
-        workspaceWindowController = WorkspaceWindowController(
-            config: config,
-            socketServer: socketServer!
-        )
-        workspaceWindowController?.showWindow(nil)
+        if workspaceWindowController == nil {
+            workspaceWindowController = WorkspaceWindowController()
+            workspaceWindowController?.onNewWorkspace = { [weak self] in
+                self?.showSetupWindow()
+            }
+            workspaceWindowController?.showWindow(nil)
+        }
+
+        workspaceWindowController?.addWorkspace(config: config)
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -42,9 +40,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // App menu
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About neetly1", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "About neetly", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit neetly1", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit neetly", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
         mainMenu.addItem(appMenuItem)
 
@@ -66,6 +64,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         paneMenu.items.last?.keyEquivalentModifierMask = [.command, .shift]
         paneMenu.addItem(withTitle: "Close Tab", action: #selector(closeCurrentTab), keyEquivalent: "w")
         paneMenu.addItem(withTitle: "Reload Browser", action: #selector(reloadBrowser), keyEquivalent: "r")
+        paneMenu.addItem(withTitle: "Clear Terminal", action: #selector(clearTerminal), keyEquivalent: "k")
         paneMenu.addItem(.separator())
         paneMenu.addItem(withTitle: "Next Tab", action: #selector(nextTab), keyEquivalent: "]")
         paneMenu.items.last?.keyEquivalentModifierMask = [.command, .shift]
@@ -75,6 +74,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(paneMenuItem)
 
         NSApp.mainMenu = mainMenu
+    }
+
+    @objc private func clearTerminal() {
+        if let pane = findFocusedPane(), let terminal = pane.activeTerminalTab() {
+            terminal.sendText("\u{0C}")
+        }
     }
 
     @objc private func reloadBrowser() {
@@ -102,7 +107,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func nextTab() {
-        // Find the focused pane and switch its tab
         if let pane = findFocusedPane() {
             pane.selectNextTab()
         }
@@ -118,7 +122,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let window = NSApp.keyWindow else { return nil }
         guard let firstResponder = window.firstResponder as? NSView else { return nil }
 
-        // Walk up the view hierarchy to find which pane contains the first responder
         var current: NSView? = firstResponder
         while let view = current {
             if let paneVC = workspaceWindowController?.getSplitTree()?
@@ -128,18 +131,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             current = view.superview
         }
 
-        // Fallback: return first pane
         return workspaceWindowController?.getSplitTree()?.paneControllers.values.first
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
-    }
-}
-
-// Expose split tree for menu actions
-extension WorkspaceWindowController {
-    func getSplitTree() -> SplitTreeController? {
-        splitTree
     }
 }

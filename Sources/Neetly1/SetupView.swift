@@ -75,13 +75,14 @@ struct RepoListScreen: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("neetly1").font(.system(size: 24, weight: .bold, design: .monospaced))
+                Text("neetly").font(.system(size: 48, weight: .bold, design: .monospaced))
                 Spacer()
                 Button(action: onAddRepo) {
                     Label("Add Repo", systemImage: "plus")
+                        .font(.system(size: 16, weight: .semibold))
                 }
                 .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
+                .controlSize(.large)
             }
             .padding(20)
 
@@ -106,11 +107,11 @@ struct RepoListScreen: View {
                     ForEach(repos) { repo in
                         Button(action: { onSelectRepo(repo) }) {
                             HStack {
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: 6) {
                                     Text(repo.name)
-                                        .font(.system(size: 15, weight: .semibold))
-                                    Text(repo.path)
-                                        .font(.system(size: 12, design: .monospaced))
+                                        .font(.system(size: 24, weight: .semibold))
+                                    Text(repo.path.replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~"))
+                                        .font(.system(size: 19, design: .monospaced))
                                         .foregroundColor(.secondary)
                                 }
                                 Spacer()
@@ -133,7 +134,7 @@ struct RepoListScreen: View {
                 }
             }
         }
-        .frame(width: 500, height: 400)
+        .frame(minWidth: 700, minHeight: 400)
     }
 }
 
@@ -239,34 +240,35 @@ struct WorkspaceNameScreen: View {
             }
 
             Text(repo.name)
-                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                .font(.system(size: 29, weight: .bold, design: .monospaced))
 
             Spacer()
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Workspace Name")
-                    .font(.title3.weight(.semibold))
-                TextField("my-feature", text: $workspaceName)
+                    .font(.system(size: 22, weight: .semibold))
+                TextField("Feature name or GitHub issue number", text: $workspaceName)
                     .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 15))
+                    .font(.system(size: 19))
                     .focused($isNameFocused)
                     .onSubmit {
                         let name = workspaceName.isEmpty ? "default" : workspaceName
                         onStart(name, autoReload)
                     }
                 Text("A workspace name could be the feature name or the bug you are working on.")
-                    .font(.caption)
+                    .font(.system(size: 16))
                     .foregroundColor(.secondary)
             }
 
             Spacer()
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Toggle(isOn: $autoReload) {
                     Text("Auto-reload browser on file changes")
+                        .font(.system(size: 17))
                 }
                 Text("WKWebView doesn't support HMR. When enabled, browser tabs reload automatically when JavaScript files change in the repo.")
-                    .font(.caption)
+                    .font(.system(size: 16))
                     .foregroundColor(.secondary)
             }
 
@@ -282,9 +284,10 @@ struct WorkspaceNameScreen: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
             }
+            .padding(.bottom, 8)
         }
         .padding(24)
-        .frame(width: 500, height: 300)
+        .frame(minWidth: 500, minHeight: 350)
         .onAppear { isNameFocused = true }
     }
 }

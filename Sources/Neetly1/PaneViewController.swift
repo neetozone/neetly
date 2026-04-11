@@ -106,6 +106,48 @@ class PaneViewController: NSViewController {
 
     func tabCount() -> Int { tabs.count }
 
+    /// Returns info about all tabs in this pane for the tabs.list command.
+    func listTabs() -> [TabListEntry] {
+        return tabs.enumerated().map { (i, tab) in
+            let tabId: String
+            let type: String
+            let title: String
+            switch tab.kind {
+            case .terminal:
+                let vc = tab.viewController as! TerminalTabViewController
+                tabId = vc.tabId.uuidString
+                type = "terminal"
+                let cmd = vc.command
+                title = cmd.isEmpty ? "Terminal" : cmd
+            case .browser:
+                let vc = tab.viewController as! BrowserTabViewController
+                tabId = vc.tabId.uuidString
+                type = "browser"
+                title = vc.currentTitle
+            }
+            return TabListEntry(
+                tabId: tabId,
+                paneId: paneId.uuidString,
+                type: type,
+                title: title,
+                isActive: i == activeTabIndex
+            )
+        }
+    }
+
+    /// Find a terminal tab by its UUID and send text to it.
+    func sendTextToTab(tabId: String, text: String) -> Bool {
+        for tab in tabs {
+            if tab.kind == .terminal,
+               let vc = tab.viewController as? TerminalTabViewController,
+               vc.tabId.uuidString == tabId {
+                vc.sendText(text)
+                return true
+            }
+        }
+        return false
+    }
+
     func selectNextTab() {
         guard tabs.count > 1 else { return }
         selectTab(at: (activeTabIndex + 1) % tabs.count)

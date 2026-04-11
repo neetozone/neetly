@@ -42,32 +42,51 @@ class WorkspaceWindowController: NSWindowController {
     }
 
     private func setupSocketHandler() {
-        socketServer.onCommand = { [weak self] command in
+        socketServer.onCommand = { [weak self] command -> Data? in
             self?.handleSocketCommand(command)
         }
     }
 
-    private func handleSocketCommand(_ command: SocketCommand) {
+    private func handleSocketCommand(_ command: SocketCommand) -> Data? {
         switch command.action {
         case "browser.open":
-            guard let url = command.url else { return }
-            if let pane = splitTree.pane(for: command.paneId) {
+            guard let url = command.url else { return nil }
+            let paneId = command.paneId ?? ""
+            if let pane = splitTree.pane(for: paneId) {
                 pane.addBrowserTab(url: url)
-            } else {
-                // If pane not found, add to first available pane
-                if let firstPane = splitTree.paneControllers.values.first {
-                    firstPane.addBrowserTab(url: url)
-                }
+            } else if let firstPane = splitTree.paneControllers.values.first {
+                firstPane.addBrowserTab(url: url)
             }
+            return nil
 
         case "terminal.run":
-            guard let cmd = command.command else { return }
-            if let pane = splitTree.pane(for: command.paneId) {
+            guard let cmd = command.command else { return nil }
+            let paneId = command.paneId ?? ""
+            if let pane = splitTree.pane(for: paneId) {
                 pane.addTerminalTab(command: cmd)
             }
+            return nil
+
+        case "tabs.list":
+            var allTabs: [TabListEntry] = []
+            for pane in splitTree.paneControllers.values {
+                allTabs.append(contentsOf: pane.listTabs())
+            }
+            return try? JSONEncoder().encode(allTabs)
+
+        case "tab.send":
+            guard let tabId = command.tabId, let text = command.text else { return nil }
+            for pane in splitTree.paneControllers.values {
+                if pane.sendTextToTab(tabId: tabId, text: text) {
+                    return nil
+                }
+            }
+            NSLog("tab.send: tab \(command.tabId ?? "nil") not found")
+            return nil
 
         default:
             NSLog("Unknown socket command: \(command.action)")
+            return nil
         }
     }
 }

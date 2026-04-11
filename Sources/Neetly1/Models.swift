@@ -25,9 +25,20 @@ struct WorkspaceConfig {
 
 struct SocketCommand: Codable {
     let action: String
-    let paneId: String
+    let paneId: String?
     let url: String?
     let command: String?
+    let tabId: String?
+    let text: String?
+}
+
+/// Info about a single tab, returned by tabs.list
+struct TabListEntry: Codable {
+    let tabId: String
+    let paneId: String
+    let type: String      // "terminal" or "browser"
+    let title: String
+    let isActive: Bool
 }
 
 // MARK: - Pane Tab

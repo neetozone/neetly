@@ -3,7 +3,8 @@ import Foundation
 class SocketServer {
     let socketPath: String
     private var serverFd: Int32 = -1
-    var onCommand: ((SocketCommand) -> Void)?
+    /// Handler returns optional response data to send back to the client.
+    var onCommand: ((SocketCommand) -> Data?)?
 
     init() {
         let pid = ProcessInfo.processInfo.processIdentifier
@@ -58,27 +59,41 @@ class SocketServer {
     }
 
     private func handleClient(_ fd: Int32) {
-        defer { close(fd) }
-
         var data = Data()
         var buffer = [UInt8](repeating: 0, count: 4096)
         while true {
             let bytesRead = read(fd, &buffer, buffer.count)
             if bytesRead <= 0 { break }
             data.append(contentsOf: buffer[0..<bytesRead])
-            if bytesRead < buffer.count { break }
         }
 
-        guard !data.isEmpty else { return }
+        guard !data.isEmpty else {
+            close(fd)
+            return
+        }
 
         do {
             let command = try JSONDecoder().decode(SocketCommand.self, from: data)
+            // Dispatch to main thread, wait for response, write it back
+            let semaphore = DispatchSemaphore(value: 0)
+            var response: Data?
             DispatchQueue.main.async { [weak self] in
-                self?.onCommand?(command)
+                response = self?.onCommand?(command)
+                semaphore.signal()
+            }
+            semaphore.wait()
+
+            // Write response if any
+            if let resp = response {
+                resp.withUnsafeBytes { bytes in
+                    _ = write(fd, bytes.baseAddress!, resp.count)
+                }
             }
         } catch {
             NSLog("SocketServer: failed to decode command: \(error)")
         }
+
+        close(fd)
     }
 
     func environmentForPane(_ paneId: UUID) -> [String: String] {
@@ -90,7 +105,7 @@ class SocketServer {
 
     func stop() {
         if serverFd >= 0 {
-            close(serverFd)
+            Darwin.close(serverFd)
             serverFd = -1
         }
         unlink(socketPath)

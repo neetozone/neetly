@@ -73,4 +73,10 @@ class TerminalTabViewController: NSViewController {
     func focusTerminal() {
         view.window?.makeFirstResponder(terminalView)
     }
+
+    /// Send text to the terminal's PTY as if the user typed it.
+    func sendText(_ text: String) {
+        let bytes = Array(text.utf8)
+        terminalView.send(data: bytes[...])
+    }
 }

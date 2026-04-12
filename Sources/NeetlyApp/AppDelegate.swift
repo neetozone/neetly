@@ -6,7 +6,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
-        showSetupWindow()
+
+        let saved = WorkspaceStore.shared.load()
+        if saved.isEmpty {
+            showSetupWindow()
+        } else {
+            restoreWorkspaces(saved)
+        }
+    }
+
+    private func restoreWorkspaces(_ saved: [SavedWorkspace]) {
+        let parser = LayoutParser()
+        for ws in saved {
+            let dedented = dedent(ws.layoutText)
+            guard let layout = parser.parse(dedented) else { continue }
+            let config = WorkspaceConfig(
+                repoPath: ws.repoPath,
+                repoName: ws.repoName,
+                workspaceName: ws.workspaceName,
+                layout: layout,
+                layoutText: ws.layoutText,
+                autoReloadOnFileChange: ws.autoReloadOnFileChange
+            )
+            launchWorkspace(config)
+        }
+    }
+
+    private func dedent(_ text: String) -> String {
+        let lines = text.components(separatedBy: .newlines)
+        let nonEmpty = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let minIndent = nonEmpty.map { $0.prefix(while: { $0 == " " || $0 == "\t" }).count }.min() ?? 0
+        return lines.map { $0.count >= minIndent ? String($0.dropFirst(minIndent)) : $0 }
+            .joined(separator: "\n")
     }
 
     private func showSetupWindow() {

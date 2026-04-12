@@ -45,6 +45,7 @@ class BrowserTabViewController: NSViewController, WKNavigationDelegate {
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
         webView.translatesAutoresizingMaskIntoConstraints = false
+        webView.addObserver(self, forKeyPath: "URL", options: [.new], context: nil)
         container.addSubview(webView)
 
         NSLayoutConstraint.activate([
@@ -173,5 +174,22 @@ class BrowserTabViewController: NSViewController, WKNavigationDelegate {
                 self?.onTitleChanged?()
             }
         }.resume()
+    }
+
+    // MARK: - KVO
+
+    override func observeValue(
+        forKeyPath keyPath: String?,
+        of object: Any?,
+        change: [NSKeyValueChangeKey : Any]?,
+        context: UnsafeMutableRawPointer?
+    ) {
+        if keyPath == "URL", let url = webView.url?.absoluteString {
+            urlBar.stringValue = url
+        }
+    }
+
+    deinit {
+        webView?.removeObserver(self, forKeyPath: "URL")
     }
 }

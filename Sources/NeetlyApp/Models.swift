@@ -21,6 +21,7 @@ struct WorkspaceConfig {
     let repoName: String
     let workspaceName: String
     let layout: LayoutNode
+    let layoutText: String
     let autoReloadOnFileChange: Bool
 }
 

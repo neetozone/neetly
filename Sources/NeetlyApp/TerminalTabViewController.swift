@@ -25,6 +25,16 @@ class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDeleg
     override func loadView() {
         terminalView = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         terminalView.autoresizingMask = [.width, .height]
+
+        let config = TerminalConfig.load()
+        terminalView.font = config.font
+        if let bg = config.bgColor {
+            terminalView.nativeBackgroundColor = bg
+        }
+        if let fg = config.fgColor {
+            terminalView.nativeForegroundColor = fg
+        }
+
         view = terminalView
     }
 
@@ -90,4 +100,10 @@ class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDeleg
     func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {}
     func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
+
+    /// Called when user clicks a URL in the terminal.
+    func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {
+        guard let url = URL(string: link) else { return }
+        NSWorkspace.shared.open(url)
+    }
 }

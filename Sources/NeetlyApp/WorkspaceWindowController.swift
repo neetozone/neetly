@@ -258,6 +258,15 @@ class WorkspaceWindowController: NSWindowController {
         }
         workspaces.append(ws)
         selectWorkspace(at: workspaces.count - 1)
+
+        // Persist to workspace store
+        WorkspaceStore.shared.add(SavedWorkspace(
+            repoPath: config.repoPath,
+            repoName: config.repoName,
+            workspaceName: config.workspaceName,
+            layoutText: config.layoutText,
+            autoReloadOnFileChange: config.autoReloadOnFileChange
+        ))
     }
 
     private func selectWorkspace(at index: Int) {
@@ -275,12 +284,16 @@ class WorkspaceWindowController: NSWindowController {
         ws.splitTree.view.autoresizingMask = [.width, .height]
         contentArea.addSubview(ws.splitTree.view)
 
-        window?.title = "neetly -\(ws.config.workspaceName)"
+        window?.title = "neetly - \(ws.config.repoName) - \(ws.config.workspaceName)"
         refreshTabBar()
     }
 
     private func closeWorkspace(at index: Int) {
         guard index >= 0 && index < workspaces.count else { return }
+
+        // Remove from workspace store
+        let cfg = workspaces[index].config
+        WorkspaceStore.shared.remove(repoPath: cfg.repoPath, workspaceName: cfg.workspaceName)
 
         if index == activeIndex {
             workspaces[index].splitTree.view.removeFromSuperview()

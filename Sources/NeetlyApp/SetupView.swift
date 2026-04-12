@@ -62,6 +62,7 @@ struct SetupView: View {
                         repoName: repo.name,
                         workspaceName: workspaceName,
                         layout: layout,
+                        layoutText: layoutText,
                         autoReloadOnFileChange: autoReload
                     )
                     onLaunch(config)

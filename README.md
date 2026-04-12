@@ -175,7 +175,11 @@ All fields are optional — omit any to use the default. The config is read when
 ## Architecture
 
 - **Terminal**: [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) (pure Swift, CPU-rendered). In the future, we could swap it for [libghostty](https://github.com/ghostty-org/ghostty) (Ghostty's Zig-based engine with Metal GPU rendering) for better performance on 4K displays and large scrollback workloads. It's a "someday maybe" note, not anything planned.
-- **Browser**: WKWebView (native macOS WebKit, zero dependencies)
+- **Browser**: [WKWebView](https://developer.apple.com/documentation/webkit/wkwebview) is Apple's native web view — the same WebKit engine that powers Safari. It's built into macOS, so neetly ships with zero browser dependencies and no extra download (unlike Electron or CEF which bundle a full Chromium). Every browser tab in neetly is a `WKWebView` embedded directly in the window.
 - **IPC**: Unix domain socket at `/tmp/neetly-<pid>.sock`
-- **Persistence**: `~/.config/neetly/repos.json`
+- **Persistence**:
+  - `~/.config/neetly/repos.json` — list of added repos and their default layouts
+  - `~/.config/neetly/workspaces.json` — open workspaces, restored on relaunch
+  - `~/.config/neetly/terminal.json` — terminal font and color overrides
+  - `~/neetly/<repo-name>/<workspace-name>` — git worktrees are created here, one per workspace
 - **File watcher**: WKWebView (WebKit) does not support HMR (Hot Module Replacement) the way Chrome's DevTools protocol does, so neetly polls the repo every 2 seconds for changes to JavaScript/React/CSS files and triggers a browser reload when anything changes.

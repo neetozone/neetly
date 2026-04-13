@@ -180,6 +180,8 @@ All fields are optional — omit any to use the default. The config is read when
 
 - **Terminal**: [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) (pure Swift, CPU-rendered). In the future, we could swap it for [libghostty](https://github.com/ghostty-org/ghostty) (Ghostty's Zig-based engine with Metal GPU rendering) for better performance on 4K displays and large scrollback workloads. It's a "someday maybe" note, not anything planned.
 - **Browser**: [WKWebView](https://developer.apple.com/documentation/webkit/wkwebview) is Apple's native web view — the same WebKit engine that powers Safari. It's built into macOS, so neetly ships with zero browser dependencies and no extra download (unlike Electron or CEF which bundle a full Chromium). Every browser tab in neetly is a `WKWebView` embedded directly in the window.
+
+  **Debugging browser tabs with Safari's Web Inspector**: neetly enables `isInspectable` on all browser tabs, so you can use Safari's full Web Inspector (DOM, console, network, breakpoints) against them. One-time setup: Safari → Settings → Advanced → check "Show features for web developers". Then in Safari → Develop → (your Mac name), you'll see all of neetly's open browser tabs listed. Click one to attach the inspector.
 - **IPC**: Unix domain socket at `/tmp/neetly-<pid>.sock`
 - **Persistence**:
   - `~/.config/neetly/repos.json` — list of added repos and their default layouts

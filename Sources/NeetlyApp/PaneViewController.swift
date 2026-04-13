@@ -1,4 +1,5 @@
 import AppKit
+import WebKit
 
 /// A pane is a leaf in the split tree. It has a horizontal tab bar and a content area.
 /// Each tab is either a terminal or a browser.
@@ -104,13 +105,30 @@ class PaneViewController: NSViewController {
 
     func addBrowserTab(url: String, background: Bool = false) {
         let vc = BrowserTabViewController(url: url)
-        vc.onTitleChanged = { [weak self] in self?.refreshTabBar() }
+        wireBrowserTab(vc)
         addChild(vc)
         tabs.append((kind: .browser, viewController: vc))
         if background {
             refreshTabBar()
         } else {
             selectTab(at: tabs.count - 1)
+        }
+    }
+
+    /// Add a browser tab that wraps an existing WKWebView (e.g. one created
+    /// by WebKit for a target=_blank link).
+    private func addBrowserTab(withWebView webView: WKWebView) {
+        let vc = BrowserTabViewController(url: "", preinstalledWebView: webView)
+        wireBrowserTab(vc)
+        addChild(vc)
+        tabs.append((kind: .browser, viewController: vc))
+        selectTab(at: tabs.count - 1)
+    }
+
+    private func wireBrowserTab(_ vc: BrowserTabViewController) {
+        vc.onTitleChanged = { [weak self] in self?.refreshTabBar() }
+        vc.onRequestNewTab = { [weak self] webView in
+            self?.addBrowserTab(withWebView: webView)
         }
     }
 

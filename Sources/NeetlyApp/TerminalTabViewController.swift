@@ -34,6 +34,9 @@ class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDeleg
         if let fg = config.fgColor {
             terminalView.nativeForegroundColor = fg
         }
+        if let sel = config.selColor {
+            terminalView.selectedTextBackgroundColor = sel
+        }
 
         view = terminalView
     }

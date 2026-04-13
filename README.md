@@ -158,8 +158,9 @@ Customize the terminal font, size, and colors by creating `~/.config/neetly/term
 {
   "fontFamily": "JetBrains Mono",
   "fontSize": 17,
-  "backgroundColor": "#1e1e2e",
-  "foregroundColor": "#cdd6f4"
+  "backgroundColor": "#1e1f2e",
+  "foregroundColor": "#cdd8f4",
+  "selectionColor": "#635b70"
 }
 ```
 
@@ -167,8 +168,9 @@ Customize the terminal font, size, and colors by creating `~/.config/neetly/term
 |---|---|---|
 | `fontFamily` | Any font installed on your system. Falls back to Symbols Nerd Font Mono, Noto Color Emoji, then system monospace. | `JetBrains Mono` |
 | `fontSize` | Point size. | `17` |
-| `backgroundColor` | Hex color (`#RRGGBB`). | `#1e1e2e` (Catppuccin base) |
-| `foregroundColor` | Hex color (`#RRGGBB`). | `#cdd6f4` (Catppuccin text) |
+| `backgroundColor` | Hex color (`#RRGGBB`). | `#1e1f2e` (Catppuccin base) |
+| `foregroundColor` | Hex color (`#RRGGBB`). | `#cdd8f4` (Catppuccin text) |
+| `selectionColor` | Background color for selected text. | `#635b70` |
 
 All fields are optional — omit any to use the default. The config is read when each terminal tab is created, so restart neetly to pick up changes.
 

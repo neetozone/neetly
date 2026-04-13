@@ -389,6 +389,10 @@ struct WorkspaceNameScreen: View {
             errorMessage = "Please provide a workspace name."
             return
         }
+        guard name.count <= 30 else {
+            errorMessage = "Workspace name must be 30 characters or fewer (current: \(name.count))."
+            return
+        }
 
         isLoading = true
 

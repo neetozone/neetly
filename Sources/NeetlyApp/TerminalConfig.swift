@@ -5,12 +5,14 @@ struct TerminalConfig: Codable {
     let fontSize: CGFloat?
     let backgroundColor: String?
     let foregroundColor: String?
+    let selectionColor: String?
 
     static let `default` = TerminalConfig(
         fontFamily: nil,
         fontSize: 17,
-        backgroundColor: "#1e1e2e",
-        foregroundColor: "#cdd6f4"
+        backgroundColor: "#1e1f2e",
+        foregroundColor: "#cdd8f4",
+        selectionColor: "#635b70"
     )
 
     static func load() -> TerminalConfig {
@@ -46,6 +48,10 @@ struct TerminalConfig: Codable {
 
     var fgColor: NSColor? {
         foregroundColor.flatMap { NSColor.fromHex($0) }
+    }
+
+    var selColor: NSColor? {
+        selectionColor.flatMap { NSColor.fromHex($0) }
     }
 }
 

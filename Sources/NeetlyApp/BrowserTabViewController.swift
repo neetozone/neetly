@@ -34,6 +34,22 @@ class BrowserTabViewController: NSViewController, WKNavigationDelegate {
         urlBar.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(urlBar)
 
+        let backButton = NSButton(image: NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Back")!,
+                                  target: self, action: #selector(goBack))
+        backButton.bezelStyle = .recessed
+        backButton.toolTip = "Back"
+        backButton.imagePosition = .imageOnly
+        backButton.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(backButton)
+
+        let forwardButton = NSButton(image: NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "Forward")!,
+                                     target: self, action: #selector(goForward))
+        forwardButton.bezelStyle = .recessed
+        forwardButton.toolTip = "Forward"
+        forwardButton.imagePosition = .imageOnly
+        forwardButton.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(forwardButton)
+
         let reloadButton = NSButton(title: "R", target: self, action: #selector(reload))
         reloadButton.bezelStyle = .recessed
         reloadButton.toolTip = "Reload"
@@ -49,7 +65,17 @@ class BrowserTabViewController: NSViewController, WKNavigationDelegate {
         container.addSubview(webView)
 
         NSLayoutConstraint.activate([
-            reloadButton.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
+            backButton.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
+            backButton.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            backButton.widthAnchor.constraint(equalToConstant: 28),
+            backButton.heightAnchor.constraint(equalToConstant: 24),
+
+            forwardButton.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 2),
+            forwardButton.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            forwardButton.widthAnchor.constraint(equalToConstant: 28),
+            forwardButton.heightAnchor.constraint(equalToConstant: 24),
+
+            reloadButton.leadingAnchor.constraint(equalTo: forwardButton.trailingAnchor, constant: 2),
             reloadButton.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
             reloadButton.widthAnchor.constraint(equalToConstant: 28),
             reloadButton.heightAnchor.constraint(equalToConstant: 24),

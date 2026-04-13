@@ -6,6 +6,7 @@ enum SetupScreen {
     case repoList
     case addRepo
     case editLayout(RepoConfig)
+    case workspaceList(RepoConfig)
     case workspaceName(RepoConfig)
 }
 
@@ -21,7 +22,7 @@ struct SetupView: View {
         case .repoList:
             RepoListScreen(
                 repos: $repos,
-                onSelectRepo: { repo in screen = .workspaceName(repo) },
+                onSelectRepo: { repo in screen = .workspaceList(repo) },
                 onAddRepo: { screen = .addRepo },
                 onEditLayout: { repo in screen = .editLayout(repo) }
             )
@@ -46,6 +47,28 @@ struct SetupView: View {
                     screen = .repoList
                 },
                 onCancel: { screen = .repoList }
+            )
+
+        case .workspaceList(let repo):
+            WorkspaceListScreen(
+                repo: repo,
+                onSelectWorkspace: { workspaceName in
+                    let parser = LayoutParser()
+                    let dedented = dedent(repo.layoutText)
+                    guard let layout = parser.parse(dedented) else { return }
+                    let worktreePath = GitWorktree.worktreePath(repoName: repo.name, workspaceName: workspaceName)
+                    let config = WorkspaceConfig(
+                        repoPath: worktreePath,
+                        repoName: repo.name,
+                        workspaceName: workspaceName,
+                        layout: layout,
+                        layoutText: repo.layoutText,
+                        autoReloadOnFileChange: true
+                    )
+                    onLaunch(config)
+                },
+                onAddWorkspace: { screen = .workspaceName(repo) },
+                onBack: { screen = .repoList }
             )
 
         case .workspaceName(let repo):
@@ -360,8 +383,14 @@ struct WorkspaceNameScreen: View {
     private func startWorkspace() {
         guard !isLoading else { return }
         errorMessage = nil
+
+        let name = workspaceName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else {
+            errorMessage = "Please provide a workspace name."
+            return
+        }
+
         isLoading = true
-        let name = workspaceName.isEmpty ? "default" : workspaceName
 
         DispatchQueue.global(qos: .userInitiated).async {
             // Create git worktree (runs git checkout, pull, worktree add)
@@ -435,6 +464,170 @@ struct EditLayoutScreen: View {
             layoutText = repo.layoutText
             pullMain = repo.pullMainBeforeWork
         }
+    }
+}
+
+// MARK: - Screen 5: Workspace List (existing workspaces for a repo)
+
+struct WorkspaceListScreen: View {
+    let repo: RepoConfig
+    @State private var workspaces: [String] = []
+    @State private var workspaceToDelete: String?
+    var onSelectWorkspace: (String) -> Void
+    var onAddWorkspace: () -> Void
+    var onBack: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: onBack) {
+                    Label("Back", systemImage: "chevron.left")
+                }
+                .buttonStyle(.plain)
+                Spacer()
+                Button(action: onAddWorkspace) {
+                    Label("Add Workspace", systemImage: "plus")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+            }
+            .padding(20)
+
+            HStack {
+                Text(repo.name)
+                    .font(.system(size: 29, weight: .bold, design: .monospaced))
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 12)
+
+            Divider()
+
+            if workspaces.isEmpty {
+                Spacer()
+                VStack(spacing: 12) {
+                    Text("No workspaces yet")
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundColor(.secondary)
+                    Text("Click \"Add Workspace\" to create one")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            } else {
+                List {
+                    ForEach(workspaces, id: \.self) { name in
+                        Button(action: { onSelectWorkspace(name) }) {
+                            HStack {
+                                HStack(spacing: 8) {
+                                    Text(name)
+                                        .font(.system(size: 22, weight: .semibold))
+                                    Menu {
+                                        Button(role: .destructive, action: {
+                                            workspaceToDelete = name
+                                        }) {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    } label: {
+                                        Image(systemName: "ellipsis")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.primary.opacity(0.6))
+                                            .frame(width: 26, height: 26)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(HoverButtonStyle())
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                            }
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .frame(minWidth: 700, minHeight: 600)
+        .onAppear {
+            workspaces = GitWorktree.listWorktrees(for: repo.name)
+        }
+        .sheet(item: Binding(
+            get: { workspaceToDelete.map { DeleteTarget(name: $0) } },
+            set: { workspaceToDelete = $0?.name }
+        )) { target in
+            DeleteWorktreeSheet(
+                repoName: repo.name,
+                workspaceName: target.name,
+                onCancel: { workspaceToDelete = nil },
+                onDelete: {
+                    // Optimistically remove from the visible list immediately
+                    let nameToDelete = target.name
+                    workspaces.removeAll { $0 == nameToDelete }
+                    workspaceToDelete = nil
+
+                    // Close the workspace if currently open (must be on main thread)
+                    let worktreePath = GitWorktree.worktreePath(repoName: repo.name, workspaceName: nameToDelete)
+                    if let appDelegate = NSApp.delegate as? AppDelegate {
+                        appDelegate.workspaceWindowController?.closeWorkspaceByPath(worktreePath)
+                    }
+
+                    // Run the actual deletion in the background
+                    let repoPath = repo.path
+                    let repoName = repo.name
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        _ = GitWorktree.deleteWorktree(
+                            parentRepoPath: repoPath,
+                            repoName: repoName,
+                            workspaceName: nameToDelete
+                        )
+                    }
+                }
+            )
+        }
+    }
+}
+
+private struct DeleteTarget: Identifiable {
+    let name: String
+    var id: String { name }
+}
+
+struct DeleteWorktreeSheet: View {
+    let repoName: String
+    let workspaceName: String
+    var onCancel: () -> Void
+    var onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Delete worktree?")
+                .font(.system(size: 20, weight: .semibold))
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("This will delete the worktree at:")
+                    .font(.system(size: 14))
+                Text("~/neetly/\(repoName)/\(workspaceName)")
+                    .font(.system(size: 13, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel", action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+                Button("Delete", role: .destructive, action: onDelete)
+                    .keyboardShortcut(.return)
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(24)
+        .frame(width: 600)
     }
 }
 

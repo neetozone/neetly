@@ -14,6 +14,51 @@ class GitWorktree {
         self.repoName = URL(fileURLWithPath: repoPath).lastPathComponent
     }
 
+    /// Returns names of existing worktrees under ~/neetly/<repoName>/.
+    /// Only returns directories that are actual git worktrees (have a .git file).
+    static func listWorktrees(for repoName: String) -> [String] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let base = "\(home)/neetly/\(repoName)"
+        guard let entries = try? FileManager.default.contentsOfDirectory(atPath: base) else {
+            return []
+        }
+        return entries
+            .filter { !$0.hasPrefix(".") }
+            .filter {
+                // A valid git worktree has a `.git` file (not a directory) that points back
+                // to the parent repo's worktrees folder.
+                let gitPath = "\(base)/\($0)/.git"
+                var isDir: ObjCBool = false
+                let exists = FileManager.default.fileExists(atPath: gitPath, isDirectory: &isDir)
+                return exists && !isDir.boolValue
+            }
+            .sorted()
+    }
+
+    /// Returns the on-disk worktree path for a given workspace name.
+    static func worktreePath(repoName: String, workspaceName: String) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return "\(home)/neetly/\(repoName)/\(workspaceName)"
+    }
+
+    /// Delete a worktree: run `git worktree remove --force` from the parent repo,
+    /// then `rm -rf` as a fallback if anything is left.
+    static func deleteWorktree(parentRepoPath: String, repoName: String, workspaceName: String) -> Bool {
+        let path = worktreePath(repoName: repoName, workspaceName: workspaceName)
+
+        // Try git worktree remove first (proper way — also unregisters from parent repo)
+        let helper = GitWorktree(repoPath: parentRepoPath)
+        let result = helper.shell("git worktree remove --force '\(path)'", in: parentRepoPath)
+        NSLog("GitWorktree: remove → \(result)")
+
+        // Fall back to rm -rf if directory still exists
+        if FileManager.default.fileExists(atPath: path) {
+            try? FileManager.default.removeItem(atPath: path)
+        }
+
+        return !FileManager.default.fileExists(atPath: path)
+    }
+
     func createWorktree(workspaceName: String, pullMain: Bool = true) -> WorktreeResult {
         // Sanitize workspace name for git branch: replace spaces with hyphens, strip invalid chars
         let branchName = workspaceName

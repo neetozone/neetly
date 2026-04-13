@@ -248,6 +248,12 @@ class WorkspaceWindowController: NSWindowController {
     }
 
     func addWorkspace(config: WorkspaceConfig) {
+        // If this workspace is already open, just switch to it
+        if let existing = workspaces.firstIndex(where: { $0.config.repoPath == config.repoPath }) {
+            selectWorkspace(at: existing)
+            return
+        }
+
         let ws = Workspace(config: config)
         ws.onStatusChanged = { [weak self] in
             self?.refreshTabBar()
@@ -286,6 +292,14 @@ class WorkspaceWindowController: NSWindowController {
 
         window?.title = "neetly - \(ws.config.repoName) - \(ws.config.workspaceName)"
         refreshTabBar()
+    }
+
+    /// Close any workspace whose repoPath (worktree path) matches.
+    /// Called when a worktree is deleted from the setup screen.
+    func closeWorkspaceByPath(_ path: String) {
+        if let index = workspaces.firstIndex(where: { $0.config.repoPath == path }) {
+            closeWorkspace(at: index)
+        }
     }
 
     private func closeWorkspace(at index: Int) {

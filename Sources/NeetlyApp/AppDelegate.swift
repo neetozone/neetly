@@ -71,7 +71,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // App menu
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About neetly", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "About neetly", action: #selector(showAbout), keyEquivalent: "")
+        aboutItem.target = self
+        appMenu.addItem(aboutItem)
         appMenu.addItem(.separator())
         let checkItem = NSMenuItem(
             title: "Check for Updates...",
@@ -113,6 +115,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(paneMenuItem)
 
         NSApp.mainMenu = mainMenu
+    }
+
+    @objc private func showAbout() {
+        let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "dev"
+        let options: [NSApplication.AboutPanelOptionKey: Any] = [
+            .applicationName: "neetly",
+            .applicationVersion: version,
+            .version: "",
+            .credits: NSAttributedString(
+                string: "A code editor with terminal, browser, split panes, and sensible notifications for building web applications with agents.",
+                attributes: [.foregroundColor: NSColor.labelColor]
+            ),
+        ]
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(options: options)
     }
 
     @objc private func clearTerminal() {

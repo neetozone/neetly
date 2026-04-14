@@ -62,6 +62,11 @@ cat > "$APP_DIR/Contents/Info.plist" << PLIST
     <true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
     <key>SUFeedURL</key>
     <string>https://github.com/neetozone/neetly/releases/latest/download/appcast.xml</string>
     <key>SUPublicEDKey</key>

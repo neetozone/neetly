@@ -37,6 +37,14 @@ class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDeleg
         if let sel = config.selColor {
             terminalView.selectedTextBackgroundColor = sel
         }
+        // Increase scrollback (SwiftTerm default is only 500 lines)
+        let scrollback = config.scrollback ?? 10000
+        let term = terminalView.getTerminal()
+        term.options = TerminalOptions(
+            cols: term.cols,
+            rows: term.rows,
+            scrollback: scrollback
+        )
 
         view = terminalView
     }
@@ -79,11 +87,16 @@ class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDeleg
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self else { return }
             let escapedPath = self.repoPath.replacingOccurrences(of: "'", with: "'\\''")
+            // Prepend the neetly CLI directory to PATH at the shell prompt, so
+            // it survives path_helper (which runs in /etc/zprofile for login
+            // shells and wipes out env-level PATH additions).
+            let escapedExecDir = execDir.replacingOccurrences(of: "'", with: "'\\''")
+            let pathExport = "export PATH='\(escapedExecDir)':\"$PATH\""
             let cmd: String
             if self.command.isEmpty {
-                cmd = "cd '\(escapedPath)'\n"
+                cmd = "\(pathExport); cd '\(escapedPath)'\n"
             } else {
-                cmd = "cd '\(escapedPath)' && \(self.command)\n"
+                cmd = "\(pathExport); cd '\(escapedPath)' && \(self.command)\n"
             }
             let bytes = Array(cmd.utf8)
             self.terminalView.send(data: bytes[...])

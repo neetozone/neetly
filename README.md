@@ -191,6 +191,7 @@ Customize the terminal font, size, and colors by creating `~/.config/neetly/term
 | `foregroundColor` | Hex color (`#RRGGBB`). | `#cdd8f4` (Catppuccin text) |
 | `selectionColor` | Background color for selected text. | `#635b70` |
 | `linkColor` | Overrides ANSI palette blue (colors 4 and 12), where most terminals render URLs. | `#8bb8fa` |
+| `scrollback` | Number of lines retained in the scroll-back buffer. | `10000` |
 
 All fields are optional — omit any to use the default. The config is read when each terminal tab is created, so restart neetly to pick up changes.
 

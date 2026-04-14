@@ -7,6 +7,7 @@ struct TerminalConfig: Codable {
     let foregroundColor: String?
     let selectionColor: String?
     let linkColor: String?
+    let scrollback: Int?
 
     static let `default` = TerminalConfig(
         fontFamily: nil,
@@ -14,7 +15,8 @@ struct TerminalConfig: Codable {
         backgroundColor: "#1e1f2e",
         foregroundColor: "#cdd8f4",
         selectionColor: "#635b70",
-        linkColor: "#8bb8fa"
+        linkColor: "#8bb8fa",
+        scrollback: 10000
     )
 
     static func load() -> TerminalConfig {

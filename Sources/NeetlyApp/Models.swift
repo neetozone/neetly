@@ -108,14 +108,14 @@ enum PaneTabKind {
     case browser
 }
 
-enum PRState {
+enum PRState: String, Codable {
     case open
     case draft
     case merged
     case closed
 }
 
-struct GitHubPRInfo {
+struct GitHubPRInfo: Codable, Equatable {
     let number: Int
     let title: String
     let url: String

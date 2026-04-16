@@ -32,6 +32,7 @@ class SplitTreeController: NSViewController {
         let pane: PaneViewController
         let placeholder: NSView
         let parentIsSplit: Bool
+        let dividerPosition: CGFloat?
     }
     private var maximizedState: MaximizedState?
 
@@ -235,6 +236,13 @@ class SplitTreeController: NSViewController {
 
         let parentIsSplit = parent is NSSplitView
 
+        // Save the divider position so we can restore the exact split ratio.
+        var dividerPosition: CGFloat? = nil
+        if let splitParent = parent as? NSSplitView, splitParent.subviews.count >= 2 {
+            let firstView = splitParent.subviews[0]
+            dividerPosition = splitParent.isVertical ? firstView.frame.width : firstView.frame.height
+        }
+
         // Create a placeholder to hold the pane's slot in the tree.
         let placeholder = NSView(frame: paneView.frame)
         placeholder.translatesAutoresizingMaskIntoConstraints = true
@@ -259,7 +267,7 @@ class SplitTreeController: NSViewController {
             paneView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
-        maximizedState = MaximizedState(pane: pane, placeholder: placeholder, parentIsSplit: parentIsSplit)
+        maximizedState = MaximizedState(pane: pane, placeholder: placeholder, parentIsSplit: parentIsSplit, dividerPosition: dividerPosition)
         pane.setMaximizedState(true)
     }
 
@@ -274,6 +282,10 @@ class SplitTreeController: NSViewController {
         // Remove pane from the container overlay (also removes its constraints)
         paneView.removeFromSuperview()
 
+        // Restore autoresizing (maximize switched to constraint-based layout)
+        paneView.translatesAutoresizingMaskIntoConstraints = true
+        paneView.autoresizingMask = [.width, .height]
+
         // Show the split tree again
         treeRoot.isHidden = false
 
@@ -282,11 +294,21 @@ class SplitTreeController: NSViewController {
             guard let idx = splitParent.arrangedSubviews.firstIndex(of: placeholder) else { return }
             placeholder.removeFromSuperview()
             splitParent.insertArrangedSubview(paneView, at: idx)
+
+            // Restore the original divider position (deferred so layout has occurred)
+            if let pos = state.dividerPosition {
+                DispatchQueue.main.async {
+                    splitParent.setPosition(pos, ofDividerAt: 0)
+                }
+            }
         } else {
             parent.replaceSubview(placeholder, with: paneView)
         }
 
         state.pane.setMaximizedState(false)
         maximizedState = nil
+
+        // Restore focus so Cmd+Shift+M continues to work
+        paneView.window?.makeFirstResponder(paneView)
     }
 }

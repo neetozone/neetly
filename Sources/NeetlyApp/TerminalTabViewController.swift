@@ -12,6 +12,7 @@ class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDeleg
     private var mouseEventMonitor: Any?
     private var autoScrollTimer: Timer?
     private var isDragSelecting = false
+    private var mouseDownPoint: NSPoint?
     /// Called when the shell process exits (e.g. user types `exit`).
     var onProcessExited: (() -> Void)?
 
@@ -99,6 +100,7 @@ class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDeleg
         case .leftMouseDown:
             if inside {
                 isDragSelecting = true
+                mouseDownPoint = local
                 startAutoScrollTimer()
             }
         case .leftMouseDragged:
@@ -107,8 +109,35 @@ class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDeleg
         case .leftMouseUp:
             isDragSelecting = false
             stopAutoScrollTimer()
+            // Simple click (not drag, not Cmd+Click) → check for URL
+            if inside, let downPt = mouseDownPoint,
+               !event.modifierFlags.contains(.command),
+               abs(local.x - downPt.x) < 3 && abs(local.y - downPt.y) < 3 {
+                openLinkAtPoint(local)
+            }
+            mouseDownPoint = nil
         default:
             break
+        }
+    }
+
+    /// Check if the click position lands on a URL in the terminal and open it.
+    private func openLinkAtPoint(_ localPoint: NSPoint) {
+        let terminal = terminalView.getTerminal()
+        guard let pixelSize = terminalView.cellSizeInPixels(source: terminal) else { return }
+        let scale = terminalView.window?.backingScaleFactor ?? 2.0
+        let cellWidth = CGFloat(pixelSize.width) / scale
+        let cellHeight = CGFloat(pixelSize.height) / scale
+        guard cellWidth > 0, cellHeight > 0 else { return }
+
+        // AppKit y=0 at bottom; terminal row=0 at top.
+        let col = Int(localPoint.x / cellWidth)
+        let row = Int((terminalView.bounds.height - localPoint.y) / cellHeight)
+
+        let pos = Position(col: col, row: row)
+        if let link = terminal.link(at: .screen(pos), mode: .explicitAndImplicit),
+           let url = URL(string: link) {
+            NSWorkspace.shared.open(url)
         }
     }
 

@@ -14,11 +14,10 @@ class GitWorktree {
         self.repoName = URL(fileURLWithPath: repoPath).lastPathComponent
     }
 
-    /// Returns names of existing worktrees under ~/neetly/<repoName>/.
+    /// Returns names of existing worktrees under the configured base directory.
     /// Only returns directories that are actual git worktrees (have a .git file).
     static func listWorktrees(for repoName: String) -> [String] {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let base = "\(home)/neetly/\(repoName)"
+        let base = "\(NeetlySettings.shared.worktreeBaseDir)/\(repoName)"
         guard let entries = try? FileManager.default.contentsOfDirectory(atPath: base) else {
             return []
         }
@@ -37,8 +36,7 @@ class GitWorktree {
 
     /// Returns the on-disk worktree path for a given workspace name.
     static func worktreePath(repoName: String, workspaceName: String) -> String {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return "\(home)/neetly/\(repoName)/\(workspaceName)"
+        return "\(NeetlySettings.shared.worktreeBaseDir)/\(repoName)/\(workspaceName)"
     }
 
     /// Returns the short commit SHA of the worktree's current HEAD, or nil.
@@ -108,8 +106,7 @@ class GitWorktree {
             .replacingOccurrences(of: "..", with: "-")
             .filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == "/" || $0 == "." }
 
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let worktreePath = "\(home)/neetly/\(repoName)/\(branchName)"
+        let worktreePath = "\(NeetlySettings.shared.worktreeBaseDir)/\(repoName)/\(branchName)"
 
         // If worktree already exists, just use it
         if FileManager.default.fileExists(atPath: worktreePath) {

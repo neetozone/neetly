@@ -58,6 +58,11 @@ class Workspace {
         GitHubPRResolver.resolve(worktreePath: config.repoPath) { [weak self] info in
             guard let self = self else { return }
             self.prInfo = info
+            WorkspaceStore.shared.updatePRInfo(
+                repoPath: self.config.repoPath,
+                workspaceName: self.config.workspaceName,
+                prInfo: info
+            )
             self.onStatusChanged?()
         }
     }
@@ -116,6 +121,15 @@ class WorkspaceTabBar: NSView {
             x += tab.frame.width + 4
         }
 
+        if workspaces.isEmpty {
+            plusButton.title = "+ Add new workspace"
+            plusButton.font = .systemFont(ofSize: 14, weight: .medium)
+            plusButton.sizeToFit()
+        } else {
+            plusButton.title = "+"
+            plusButton.font = .systemFont(ofSize: 14, weight: .medium)
+            plusButton.frame.size = NSSize(width: 28, height: 24)
+        }
         plusButton.frame.origin.x = x
         plusButton.frame.origin.y = 28
         addSubview(plusButton)
@@ -274,6 +288,7 @@ private class WorkspaceTab: NSView {
         closeBtn.action = #selector(closeClicked)
         closeBtn.imageScaling = .scaleProportionallyDown
         closeBtn.isHidden = true
+        closeBtn.toolTip = "Close Workspace"
         // Vertically center the close button relative to the tab
         closeBtn.frame = NSRect(x: 0, y: (totalHeight - 18) / 2, width: 18, height: 18)
         addSubview(closeBtn)
@@ -501,7 +516,7 @@ class WorkspaceWindowController: NSWindowController {
             window?.title = "neetly"
             prRefreshTimer?.invalidate()
             prRefreshTimer = nil
-            onNewWorkspace?()
+            refreshTabBar()
         } else {
             activeIndex = min(activeIndex, workspaces.count - 1)
             selectWorkspace(at: activeIndex)

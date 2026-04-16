@@ -8,14 +8,20 @@ enum SetupScreen {
     case editLayout(RepoConfig)
     case workspaceList(RepoConfig)
     case workspaceName(RepoConfig)
+    case settings
 }
 
 // MARK: - Root Setup View
 
 struct SetupView: View {
-    @State private var screen: SetupScreen = .repoList
+    @State private var screen: SetupScreen
     @State private var repos: [RepoConfig] = []
     var onLaunch: (WorkspaceConfig) -> Void
+
+    init(initialScreen: SetupScreen = .repoList, onLaunch: @escaping (WorkspaceConfig) -> Void) {
+        _screen = State(initialValue: initialScreen)
+        self.onLaunch = onLaunch
+    }
 
     var body: some View {
         switch screen {
@@ -24,7 +30,8 @@ struct SetupView: View {
                 repos: $repos,
                 onSelectRepo: { repo in screen = .workspaceList(repo) },
                 onAddRepo: { screen = .addRepo },
-                onEditLayout: { repo in screen = .editLayout(repo) }
+                onEditLayout: { repo in screen = .editLayout(repo) },
+                onSettings: { screen = .settings }
             )
             .onAppear { repos = RepoStore.shared.load() }
 
@@ -33,7 +40,7 @@ struct SetupView: View {
                 onAdd: { repo in
                     RepoStore.shared.add(repo)
                     repos = RepoStore.shared.load()
-                    screen = .repoList
+                    screen = .workspaceName(repo)
                 },
                 onCancel: { screen = .repoList }
             )
@@ -92,6 +99,9 @@ struct SetupView: View {
                 },
                 onBack: { screen = .repoList }
             )
+
+        case .settings:
+            SettingsScreen(onBack: { screen = .repoList })
         }
     }
 
@@ -111,6 +121,7 @@ struct RepoListScreen: View {
     var onSelectRepo: (RepoConfig) -> Void
     var onAddRepo: () -> Void
     var onEditLayout: (RepoConfig) -> Void
+    var onSettings: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -118,6 +129,12 @@ struct RepoListScreen: View {
             HStack {
                 Text("neetly").font(.system(size: 48, weight: .bold, design: .monospaced))
                 Spacer()
+                Button(action: onSettings) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+                .help("Settings")
                 Button(action: onAddRepo) {
                     Label("Add Repo", systemImage: "plus")
                         .font(.system(size: 16, weight: .semibold))
@@ -484,13 +501,47 @@ struct EditLayoutScreen: View {
 
 // MARK: - Screen 5: Workspace List (existing workspaces for a repo)
 
+struct WorkspaceListEntry: Identifiable {
+    let name: String
+    var prInfo: GitHubPRInfo?
+    var id: String { name }
+}
+
 struct WorkspaceListScreen: View {
     let repo: RepoConfig
-    @State private var workspaces: [String] = []
+    @State private var workspaces: [WorkspaceListEntry] = []
     @State private var workspaceToDelete: String?
     var onSelectWorkspace: (String) -> Void
     var onAddWorkspace: () -> Void
     var onBack: () -> Void
+
+    private func loadWorkspaces() -> [WorkspaceListEntry] {
+        let names = GitWorktree.listWorktrees(for: repo.name)
+        let saved = WorkspaceStore.shared.load()
+        return names.map { name in
+            let pr = saved.first { $0.repoName == repo.name && $0.workspaceName == name }?.prInfo
+            return WorkspaceListEntry(name: name, prInfo: pr)
+        }
+    }
+
+    private func fetchMissingPRInfo() {
+        let repoName = repo.name
+        for entry in workspaces where entry.prInfo == nil {
+            let worktreePath = GitWorktree.worktreePath(repoName: repoName, workspaceName: entry.name)
+            let name = entry.name
+            GitHubPRResolver.resolve(worktreePath: worktreePath) { info in
+                guard let info = info else { return }
+                if let idx = workspaces.firstIndex(where: { $0.name == name }) {
+                    workspaces[idx].prInfo = info
+                }
+                WorkspaceStore.shared.updatePRInfo(
+                    repoPath: worktreePath,
+                    workspaceName: name,
+                    prInfo: info
+                )
+            }
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -532,15 +583,18 @@ struct WorkspaceListScreen: View {
                 Spacer()
             } else {
                 List {
-                    ForEach(workspaces, id: \.self) { name in
-                        Button(action: { onSelectWorkspace(name) }) {
+                    ForEach(workspaces) { entry in
+                        Button(action: { onSelectWorkspace(entry.name) }) {
                             HStack {
-                                HStack(spacing: 8) {
-                                    Text(name)
+                                HStack(spacing: 10) {
+                                    Text(entry.name)
                                         .font(.system(size: 22, weight: .semibold))
+                                    if let pr = entry.prInfo {
+                                        PRBadge(prInfo: pr)
+                                    }
                                     Menu {
                                         Button(role: .destructive, action: {
-                                            workspaceToDelete = name
+                                            workspaceToDelete = entry.name
                                         }) {
                                             Label("Delete", systemImage: "trash")
                                         }
@@ -568,7 +622,8 @@ struct WorkspaceListScreen: View {
         }
         .frame(minWidth: 700, minHeight: 600)
         .onAppear {
-            workspaces = GitWorktree.listWorktrees(for: repo.name)
+            workspaces = loadWorkspaces()
+            fetchMissingPRInfo()
         }
         .sheet(item: Binding(
             get: { workspaceToDelete.map { DeleteTarget(name: $0) } },
@@ -581,7 +636,7 @@ struct WorkspaceListScreen: View {
                 onDelete: {
                     // Optimistically remove from the visible list immediately
                     let nameToDelete = target.name
-                    workspaces.removeAll { $0 == nameToDelete }
+                    workspaces.removeAll { $0.name == nameToDelete }
                     workspaceToDelete = nil
 
                     // Close the workspace if currently open (must be on main thread)
@@ -625,7 +680,8 @@ struct DeleteWorktreeSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("This will delete the worktree at:")
                     .font(.system(size: 14))
-                Text("~/neetly/\(repoName)/\(workspaceName)")
+                Text(GitWorktree.worktreePath(repoName: repoName, workspaceName: workspaceName)
+                    .replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~"))
                     .font(.system(size: 13, design: .monospaced))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
@@ -643,6 +699,156 @@ struct DeleteWorktreeSheet: View {
         }
         .padding(24)
         .frame(width: 600)
+    }
+}
+
+// MARK: - Settings
+
+struct SettingsScreen: View {
+    @State private var worktreeDir: String = NeetlySettings.shared.worktreeBaseDir
+    @State private var message: String?
+    @State private var messageIsError: Bool = false
+    var onBack: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Button(action: onBack) {
+                    Label("Back", systemImage: "chevron.left")
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+            .padding(20)
+
+            Text("neetly")
+                .font(.system(size: 29, weight: .bold, design: .monospaced))
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Settings")
+                    .font(.system(size: 22, weight: .semibold))
+                    .padding(.top, 20)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Worktree Directory")
+                        .font(.system(size: 16, weight: .medium))
+                    Text("The directory where neetly creates git worktrees for your workspaces.")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                    HStack {
+                        TextField("", text: $worktreeDir)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 15, design: .monospaced))
+                        Button("Browse...") { pickDirectory() }
+                    }
+                }
+
+                if let msg = message {
+                    Text(msg)
+                        .font(.system(size: 13))
+                        .foregroundColor(messageIsError ? .red : .green)
+                }
+
+                HStack {
+                    Spacer()
+                    Button("Save") { save() }
+                        .keyboardShortcut(.return)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                }
+            }
+            .padding(.horizontal, 20)
+
+            Spacer()
+        }
+        .frame(minWidth: 700, minHeight: 600)
+    }
+
+    private func pickDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Select the directory for worktrees"
+        if panel.runModal() == .OK, let url = panel.url {
+            worktreeDir = url.path
+        }
+    }
+
+    private func save() {
+        message = nil
+        let path = worktreeDir.trimmingCharacters(in: .whitespaces)
+        guard !path.isEmpty else {
+            message = "Please provide a directory path."
+            messageIsError = true
+            return
+        }
+
+        // Expand ~ if typed manually
+        let expanded = NSString(string: path).expandingTildeInPath
+
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: expanded, isDirectory: &isDir), isDir.boolValue {
+            worktreeDir = expanded
+            NeetlySettings.shared.setWorktreeBaseDir(expanded)
+            message = "Settings saved."
+            messageIsError = false
+        } else {
+            message = "Directory does not exist: \(expanded)"
+            messageIsError = true
+        }
+    }
+}
+
+// MARK: - PR Badge
+
+struct PRBadge: View {
+    let prInfo: GitHubPRInfo
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text(verbatim: "\(stateLabel) #\(prInfo.number)")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(color)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(color.opacity(0.15))
+        .clipShape(Capsule())
+        .help("#\(prInfo.number) \(prInfo.title)")
+        .onHover { hovering in
+            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
+        .onTapGesture {
+            if let url = URL(string: prInfo.url) {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+
+    private var color: Color {
+        switch prInfo.state {
+        case .open:   return .green
+        case .draft:  return .gray
+        case .merged: return .purple
+        case .closed: return .red
+        }
+    }
+
+    private var stateLabel: String {
+        switch prInfo.state {
+        case .open:   return "Open"
+        case .draft:  return "Draft"
+        case .merged: return "Merged"
+        case .closed: return "Closed"
+        }
     }
 }
 

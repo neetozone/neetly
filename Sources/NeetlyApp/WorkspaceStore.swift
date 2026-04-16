@@ -6,6 +6,7 @@ struct SavedWorkspace: Codable, Equatable {
     let workspaceName: String
     let layoutText: String
     let autoReloadOnFileChange: Bool
+    var prInfo: GitHubPRInfo? = nil
 }
 
 class WorkspaceStore {
@@ -48,6 +49,15 @@ class WorkspaceStore {
     func remove(repoPath: String, workspaceName: String) {
         var all = load()
         all.removeAll { $0.repoPath == repoPath && $0.workspaceName == workspaceName }
+        save(all)
+    }
+
+    func updatePRInfo(repoPath: String, workspaceName: String, prInfo: GitHubPRInfo?) {
+        var all = load()
+        guard let idx = all.firstIndex(where: {
+            $0.repoPath == repoPath && $0.workspaceName == workspaceName
+        }) else { return }
+        all[idx].prInfo = prInfo
         save(all)
     }
 }

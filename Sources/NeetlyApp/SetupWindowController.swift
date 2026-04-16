@@ -4,7 +4,7 @@ import SwiftUI
 class SetupWindowController: NSWindowController {
     var onLaunch: ((WorkspaceConfig) -> Void)?
 
-    convenience init() {
+    convenience init(initialScreen: SetupScreen = .repoList) {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 700, height: 600),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -15,7 +15,7 @@ class SetupWindowController: NSWindowController {
         window.center()
         self.init(window: window)
 
-        let setupView = SetupView { [weak self] config in
+        let setupView = SetupView(initialScreen: initialScreen) { [weak self] config in
             self?.onLaunch?(config)
         }
         window.contentView = NSHostingView(rootView: setupView)

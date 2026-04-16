@@ -213,6 +213,7 @@ private class TabButton: NSView {
         closeBtn.action = #selector(closeClicked)
         closeBtn.imageScaling = .scaleProportionallyDown
         closeBtn.isHidden = true
+        closeBtn.toolTip = "Close Tab (Cmd+W)"
         let closeX = x + label.frame.width + 4
         closeBtn.frame.origin.x = closeX
         addSubview(closeBtn)

@@ -6,6 +6,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var escapeMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Shorten AppKit's default ~1.5s tooltip delay.
+        UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 300])
+
         setAppIcon()
         setupMainMenu()
         setupEscapeKeyMonitor()
@@ -43,14 +46,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .joined(separator: "\n")
     }
 
-    private func showSetupWindow() {
-        // Always create fresh so it starts from repo list
-        setupWindowController = SetupWindowController()
+    private func showSetupWindow(initialScreen: SetupScreen = .repoList) {
+        setupWindowController = SetupWindowController(initialScreen: initialScreen)
         setupWindowController?.onLaunch = { [weak self] config in
             self?.launchWorkspace(config)
         }
         setupWindowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func openSettings() {
+        showSetupWindow(initialScreen: .settings)
     }
 
     private func launchWorkspace(_ config: WorkspaceConfig) {
@@ -109,6 +115,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         checkItem.target = Updater.shared
         appMenu.addItem(checkItem)
         appMenu.addItem(.separator())
+        let settingsItem = NSMenuItem(title: "Settings\u{2026}", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        appMenu.addItem(settingsItem)
+        appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit neetly", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
         mainMenu.addItem(appMenuItem)
@@ -147,15 +157,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showAbout() {
         let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "dev"
-        let options: [NSApplication.AboutPanelOptionKey: Any] = [
+        var options: [NSApplication.AboutPanelOptionKey: Any] = [
             .applicationName: "neetly",
             .applicationVersion: version,
             .version: "",
             .credits: NSAttributedString(
-                string: "A code editor with terminal, browser, split panes, and sensible notifications for building web applications with agents.",
-                attributes: [.foregroundColor: NSColor.labelColor]
+                string: "Copyright \u{00A9} 2026 \u{2014} Neeto",
+                attributes: [
+                    .foregroundColor: NSColor.secondaryLabelColor,
+                    .font: NSFont.systemFont(ofSize: 11),
+                ]
             ),
         ]
+        if let url = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
+           let icon = NSImage(contentsOf: url) {
+            options[.applicationIcon] = icon
+        }
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: options)
     }

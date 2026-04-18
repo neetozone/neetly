@@ -109,8 +109,8 @@ class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDeleg
         case .leftMouseUp:
             isDragSelecting = false
             stopAutoScrollTimer()
-            // Simple click (not drag, not Cmd+Click) → check for URL
-            if inside, let downPt = mouseDownPoint,
+            // Single click only (not double-click, not drag, not Cmd+Click) → check for URL
+            if inside, event.clickCount == 1, let downPt = mouseDownPoint,
                !event.modifierFlags.contains(.command),
                abs(local.x - downPt.x) < 3 && abs(local.y - downPt.y) < 3 {
                 openLinkAtPoint(local)
@@ -136,7 +136,8 @@ class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDeleg
 
         let pos = Position(col: col, row: row)
         if let link = terminal.link(at: .screen(pos), mode: .explicitAndImplicit),
-           let url = URL(string: link) {
+           let url = URL(string: link),
+           url.scheme == "http" || url.scheme == "https" {
             NSWorkspace.shared.open(url)
         }
     }

@@ -871,7 +871,7 @@ struct ActivityScreen: View {
                                 .frame(width: 20, alignment: .center)
                                 .padding(.top, 3)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(activity.description)
+                                activityText(activity)
                                     .font(.system(size: 15))
                                 Text(formatDate(activity.timestamp))
                                     .font(.system(size: 12))
@@ -886,6 +886,24 @@ struct ActivityScreen: View {
         .frame(minWidth: 700, minHeight: 600)
         .onAppear {
             activities = ActivityStore.shared.load()
+        }
+    }
+
+    @ViewBuilder
+    private func activityText(_ activity: Activity) -> some View {
+        if activity.kind == .prOpened, let urlStr = activity.prURL, let url = URL(string: urlStr) {
+            let state = activity.prState.map { " (\($0))" } ?? ""
+            HStack(spacing: 0) {
+                Text("Opened PR ")
+                Text(verbatim: "#\(activity.detail)\(state)")
+                    .foregroundColor(.blue)
+                    .underline()
+                    .onTapGesture { NSWorkspace.shared.open(url) }
+                    .onHover { h in if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+                Text(" for repo \(activity.repoName).")
+            }
+        } else {
+            Text(activity.description)
         }
     }
 

@@ -6,6 +6,8 @@ struct Activity: Codable, Identifiable {
     let kind: Kind
     let repoName: String
     let detail: String
+    var prURL: String?
+    var prState: String?
 
     enum Kind: String, Codable {
         case workspaceCreated
@@ -16,11 +18,12 @@ struct Activity: Codable, Identifiable {
     var description: String {
         switch kind {
         case .workspaceCreated:
-            return "Created workspace \(detail) for repo \(repoName)"
+            return "Created workspace \(detail) for repo \(repoName)."
         case .workspaceDeleted:
-            return "Deleted workspace \(detail) from repo \(repoName)"
+            return "Deleted workspace \(detail) from repo \(repoName)."
         case .prOpened:
-            return "Opened PR #\(detail) for repo \(repoName)"
+            let state = prState.map { " (\($0))" } ?? ""
+            return "Opened PR #\(detail)\(state) for repo \(repoName)."
         }
     }
 }
@@ -55,18 +58,31 @@ class ActivityStore {
         }
     }
 
-    func log(_ kind: Activity.Kind, repoName: String, detail: String) {
+    func log(_ kind: Activity.Kind, repoName: String, detail: String, prURL: String? = nil) {
         var all = load()
         let activity = Activity(
             id: UUID(),
             timestamp: Date(),
             kind: kind,
             repoName: repoName,
-            detail: detail
+            detail: detail,
+            prURL: prURL
         )
         all.insert(activity, at: 0)
         // Keep last 200 activities
         if all.count > 200 { all = Array(all.prefix(200)) }
         save(all)
+    }
+
+    /// Update the state of an existing PR activity (e.g., from Open to Merged).
+    func updatePRState(repoName: String, prNumber: String, state: String, url: String?) {
+        var all = load()
+        if let idx = all.firstIndex(where: {
+            $0.kind == .prOpened && $0.repoName == repoName && $0.detail == prNumber
+        }) {
+            all[idx].prState = state
+            if let url = url { all[idx].prURL = url }
+            save(all)
+        }
     }
 }

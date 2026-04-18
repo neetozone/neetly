@@ -64,13 +64,34 @@ class Workspace {
                 workspaceName: self.config.workspaceName,
                 prInfo: info
             )
-            // Log activity when a PR is first detected
-            if let info = info, previousPR == nil {
-                ActivityStore.shared.log(
-                    .prOpened,
-                    repoName: self.config.repoName,
-                    detail: "\(info.number)"
-                )
+            if let info = info {
+                let stateLabel: String
+                switch info.state {
+                case .open:   stateLabel = "Open"
+                case .draft:  stateLabel = "Draft"
+                case .merged: stateLabel = "Merged"
+                case .closed: stateLabel = "Closed"
+                }
+
+                if previousPR == nil {
+                    // Log activity when a PR is first detected
+                    ActivityStore.shared.log(
+                        .prOpened,
+                        repoName: self.config.repoName,
+                        detail: "\(info.number)",
+                        prURL: info.url
+                    )
+                }
+
+                // Update state if it changed (e.g., Open → Merged)
+                if previousPR?.state != info.state || previousPR == nil {
+                    ActivityStore.shared.updatePRState(
+                        repoName: self.config.repoName,
+                        prNumber: "\(info.number)",
+                        state: stateLabel,
+                        url: info.url
+                    )
+                }
             }
             self.onStatusChanged?()
         }

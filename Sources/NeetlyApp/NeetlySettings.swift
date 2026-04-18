@@ -17,7 +17,7 @@ class NeetlySettings {
     }
 
     static var defaultWorktreeBaseDir: String {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("neetly").path
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("neetly-worktrees").path
     }
 
     var worktreeBaseDir: String {

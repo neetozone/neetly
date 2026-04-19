@@ -145,6 +145,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         paneMenu.addItem(withTitle: "Maximize / Restore", action: #selector(toggleMaximize), keyEquivalent: "m")
         paneMenu.items.last?.keyEquivalentModifierMask = [.command, .shift]
         paneMenu.addItem(.separator())
+        paneMenu.addItem(withTitle: "Diff (lazygit)", action: #selector(openDiff), keyEquivalent: "d")
+        paneMenu.addItem(withTitle: "Close Diff", action: #selector(closeDiff), keyEquivalent: "z")
+        paneMenu.addItem(.separator())
         paneMenu.addItem(withTitle: "Next Tab", action: #selector(nextTab), keyEquivalent: "]")
         paneMenu.items.last?.keyEquivalentModifierMask = [.command, .shift]
         paneMenu.addItem(withTitle: "Previous Tab", action: #selector(previousTab), keyEquivalent: "[")
@@ -183,6 +186,39 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             splitTree.toggleMaximizeForActivePane()
         } else if let pane = findFocusedPane() {
             splitTree.toggleMaximize(pane)
+        }
+    }
+
+    @objc private func openDiff() {
+        guard let splitTree = workspaceWindowController?.getSplitTree() else { return }
+
+        // Find the last pane (rightmost/bottommost) by seqId
+        guard let pane = splitTree.paneControllers.values.max(by: { $0.seqId < $1.seqId }) else { return }
+
+        // Add a lazygit terminal tab and select it
+        pane.addTerminalTab(command: "lazygit")
+
+        // Maximize the pane after a short delay to let the tab initialize
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            if !splitTree.isMaximized {
+                splitTree.toggleMaximize(pane)
+            }
+        }
+    }
+
+    @objc private func closeDiff() {
+        guard let splitTree = workspaceWindowController?.getSplitTree() else { return }
+
+        // Unmaximize first if maximized
+        if splitTree.isMaximized {
+            splitTree.toggleMaximizeForActivePane()
+        }
+
+        // Close the active tab (kills the lazygit process cleanly)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            if let pane = self?.findFocusedPane() {
+                pane.closeActiveTab()
+            }
         }
     }
 

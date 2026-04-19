@@ -39,6 +39,24 @@ class GitWorktree {
         return "\(NeetlySettings.shared.worktreeBaseDir)/\(repoName)/\(workspaceName)"
     }
 
+    /// Returns (additions, deletions) of uncommitted changes vs HEAD, or nil on error.
+    static func diffStats(worktreePath: String) -> (added: Int, deleted: Int)? {
+        guard FileManager.default.fileExists(atPath: worktreePath) else { return nil }
+        let helper = GitWorktree(repoPath: worktreePath)
+        let result = helper.shell("git diff --numstat HEAD", in: worktreePath)
+        guard result.success else { return nil }
+        var added = 0
+        var deleted = 0
+        for line in result.output.split(separator: "\n") {
+            let parts = line.split(separator: "\t")
+            guard parts.count >= 2 else { continue }
+            // Binary files show "-" instead of numbers
+            added += Int(parts[0]) ?? 0
+            deleted += Int(parts[1]) ?? 0
+        }
+        return (added, deleted)
+    }
+
     /// Returns the short commit SHA of the worktree's current HEAD, or nil.
     static func headShortSha(worktreePath: String) -> String? {
         guard FileManager.default.fileExists(atPath: worktreePath) else { return nil }

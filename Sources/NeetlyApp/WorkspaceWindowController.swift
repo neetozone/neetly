@@ -14,6 +14,8 @@ class Workspace {
     var commitSha: String?
     /// GitHub commit URL for the worktree's current HEAD, if the remote is GitHub.
     var commitURL: String?
+    /// Uncommitted diff stats (lines added/deleted vs HEAD).
+    var diffStats: (added: Int, deleted: Int)?
     var onStatusChanged: (() -> Void)?
 
     init(config: WorkspaceConfig) {
@@ -133,7 +135,7 @@ class WorkspaceTabBar: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
-    func update(workspaces: [(repoName: String, workspaceName: String, commitSha: String?, commitURL: String?, isActive: Bool, statusColor: NSColor?, prInfo: GitHubPRInfo?)]) {
+    func update(workspaces: [(repoName: String, workspaceName: String, commitSha: String?, commitURL: String?, isActive: Bool, statusColor: NSColor?, prInfo: GitHubPRInfo?, diffStats: (added: Int, deleted: Int)?)]) {
         tabViews.forEach { $0.removeFromSuperview() }
         tabViews.removeAll()
         detailViews.forEach { $0.removeFromSuperview() }
@@ -239,6 +241,34 @@ class WorkspaceTabBar: NSView {
             addSubview(prBtn)
             detailViews.append(prBtn)
             prInfoURL = URL(string: pr.url)
+            detailX += prBtn.frame.width + 12
+        }
+
+        // -- Diff stats (+N -M) --
+        if let stats = active.diffStats, stats.added > 0 || stats.deleted > 0 {
+            let diffAttr = NSMutableAttributedString()
+            if stats.added > 0 {
+                diffAttr.append(NSAttributedString(string: "+\(stats.added)", attributes: [
+                    .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium),
+                    .foregroundColor: NSColor.systemGreen,
+                ]))
+            }
+            if stats.added > 0 && stats.deleted > 0 {
+                diffAttr.append(NSAttributedString(string: " ", attributes: [
+                    .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium),
+                ]))
+            }
+            if stats.deleted > 0 {
+                diffAttr.append(NSAttributedString(string: "-\(stats.deleted)", attributes: [
+                    .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium),
+                    .foregroundColor: NSColor.systemRed,
+                ]))
+            }
+            let diffLabel = NSTextField(labelWithAttributedString: diffAttr)
+            diffLabel.sizeToFit()
+            diffLabel.frame.origin = CGPoint(x: detailX, y: detailY + 2)
+            addSubview(diffLabel)
+            detailViews.append(diffLabel)
         }
     }
 
@@ -395,6 +425,7 @@ class WorkspaceWindowController: NSWindowController {
     private let workspaceTabBar = WorkspaceTabBar(frame: .zero)
     private let contentArea = NSView()
     private var prRefreshTimer: Timer?
+    private var diffStatsTimer: Timer?
     var onNewWorkspace: (() -> Void)?
 
     init() {
@@ -475,6 +506,27 @@ class WorkspaceWindowController: NSWindowController {
                 self?.refreshAllPRStatuses()
             }
         }
+
+        // Start diff stats polling for active workspace
+        if diffStatsTimer == nil {
+            diffStatsTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+                self?.refreshActiveDiffStats()
+            }
+        }
+    }
+
+    private func refreshActiveDiffStats() {
+        guard activeIndex >= 0 && activeIndex < workspaces.count else { return }
+        let ws = workspaces[activeIndex]
+        DispatchQueue.global(qos: .utility).async {
+            let stats = GitWorktree.diffStats(worktreePath: ws.config.repoPath)
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                let changed = ws.diffStats?.added != stats?.added || ws.diffStats?.deleted != stats?.deleted
+                ws.diffStats = stats
+                if changed { self.refreshTabBar() }
+            }
+        }
     }
 
     private func refreshAllPRStatuses() {
@@ -529,6 +581,8 @@ class WorkspaceWindowController: NSWindowController {
             window?.title = "neetly"
             prRefreshTimer?.invalidate()
             prRefreshTimer = nil
+            diffStatsTimer?.invalidate()
+            diffStatsTimer = nil
             refreshTabBar()
         } else {
             activeIndex = min(activeIndex, workspaces.count - 1)
@@ -538,7 +592,7 @@ class WorkspaceWindowController: NSWindowController {
 
     private func refreshTabBar() {
         let tabs = workspaces.enumerated().map { (i, ws) in
-            (repoName: ws.config.repoName, workspaceName: ws.config.workspaceName, commitSha: ws.commitSha, commitURL: ws.commitURL, isActive: i == activeIndex, statusColor: ws.statusColor, prInfo: ws.prInfo)
+            (repoName: ws.config.repoName, workspaceName: ws.config.workspaceName, commitSha: ws.commitSha, commitURL: ws.commitURL, isActive: i == activeIndex, statusColor: ws.statusColor, prInfo: ws.prInfo, diffStats: ws.diffStats)
         }
         workspaceTabBar.update(workspaces: tabs)
     }

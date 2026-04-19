@@ -204,6 +204,15 @@ class PaneViewController: NSViewController {
         tabs.compactMap { $0.viewController as? BrowserTabViewController }
     }
 
+    /// Send SIGINT to all terminal processes in this pane.
+    func interruptAllTerminals() {
+        for tab in tabs {
+            if let terminal = tab.viewController as? TerminalTabViewController {
+                terminal.interruptProcess()
+            }
+        }
+    }
+
     /// Returns info about all tabs in this pane for the tabs.list command.
     func listTabs() -> [TabListEntry] {
         return tabs.enumerated().map { (i, tab) in

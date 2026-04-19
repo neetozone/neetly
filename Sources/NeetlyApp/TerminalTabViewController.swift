@@ -223,6 +223,14 @@ class TerminalTabViewController: NSViewController, LocalProcessTerminalViewDeleg
         terminalView.send(data: bytes[...])
     }
 
+    /// Send SIGINT to the shell process and its children (equivalent to Ctrl+C).
+    func interruptProcess() {
+        let pid = terminalView.process.shellPid
+        guard pid > 0 else { return }
+        // Send SIGINT to the process group so child processes (servers, etc.) also get it
+        kill(-pid, SIGINT)
+    }
+
     // MARK: - LocalProcessTerminalViewDelegate
 
     func processTerminated(source: TerminalView, exitCode: Int32?) {

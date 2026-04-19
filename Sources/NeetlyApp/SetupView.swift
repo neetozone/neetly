@@ -619,7 +619,7 @@ struct WorkspaceListScreen: View {
                                         Button(role: .destructive, action: {
                                             workspaceToDelete = entry.name
                                         }) {
-                                            Label("Delete", systemImage: "trash")
+                                            Label("Delete Workspace", systemImage: "trash")
                                         }
                                     } label: {
                                         Image(systemName: "ellipsis")
@@ -698,7 +698,7 @@ struct DeleteWorktreeSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Delete worktree?")
+            Text("Deleting Workspace?")
                 .font(.system(size: 20, weight: .semibold))
 
             VStack(alignment: .leading, spacing: 8) {
@@ -981,11 +981,8 @@ struct PRBadge: View {
     let prInfo: GitHubPRInfo
 
     var body: some View {
-        HStack(spacing: 5) {
-            Circle()
-                .fill(color)
-                .frame(width: 6, height: 6)
-            Text(verbatim: "\(stateLabel) #\(prInfo.number)")
+        HStack(spacing: 0) {
+            Text(verbatim: "PR #\(prInfo.number) (\(stateLabel))")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(color)
         }

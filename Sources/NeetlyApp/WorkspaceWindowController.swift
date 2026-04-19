@@ -100,6 +100,10 @@ class Workspace {
     }
 
     func stop() {
+        // Send SIGINT to all terminal processes so they can clean up (release ports, etc.)
+        for pane in splitTree.paneControllers.values {
+            pane.interruptAllTerminals()
+        }
         fileWatcher?.stop()
         socketServer.stop()
     }
@@ -337,10 +341,10 @@ private class WorkspaceTab: NSView {
         let repoY: CGFloat = contentBase + 20
         let wsY: CGFloat = contentBase + 4
 
+        let hasStatusColor = statusColor != nil
         let repoLabel = NSTextField(labelWithString: repoName)
         repoLabel.font = .systemFont(ofSize: 10)
-        // Catppuccin Mocha: Subtext0 #a6adc8
-        repoLabel.textColor = isActive ? NSColor(red: 0xa6/255, green: 0xad/255, blue: 0xc8/255, alpha: 1) : .secondaryLabelColor
+        repoLabel.textColor = hasStatusColor ? .black.withAlphaComponent(0.6) : isActive ? NSColor(red: 0xa6/255, green: 0xad/255, blue: 0xc8/255, alpha: 1) : .secondaryLabelColor
         repoLabel.lineBreakMode = .byTruncatingTail
         repoLabel.frame = NSRect(x: 8, y: repoY, width: 140, height: 14)
         addSubview(repoLabel)
@@ -348,7 +352,7 @@ private class WorkspaceTab: NSView {
         let wsLabel = NSTextField(labelWithString: workspaceName)
         wsLabel.font = .systemFont(ofSize: 14, weight: isActive ? .semibold : .regular)
         // Catppuccin Mocha: Text #cdd6f4
-        wsLabel.textColor = isActive ? NSColor(red: 0xcd/255, green: 0xd6/255, blue: 0xf4/255, alpha: 1) : .labelColor
+        wsLabel.textColor = hasStatusColor ? .black : isActive ? NSColor(red: 0xcd/255, green: 0xd6/255, blue: 0xf4/255, alpha: 1) : .labelColor
         wsLabel.lineBreakMode = .byTruncatingTail
         wsLabel.frame = NSRect(x: 8, y: wsY, width: 140, height: 17)
         addSubview(wsLabel)
@@ -356,7 +360,7 @@ private class WorkspaceTab: NSView {
         closeBtn.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Detach workspace")
         closeBtn.imagePosition = .imageOnly
         closeBtn.isBordered = false
-        closeBtn.contentTintColor = isActive ? NSColor(red: 0xa6/255, green: 0xad/255, blue: 0xc8/255, alpha: 1) : .secondaryLabelColor
+        closeBtn.contentTintColor = hasStatusColor ? .black.withAlphaComponent(0.6) : isActive ? NSColor(red: 0xa6/255, green: 0xad/255, blue: 0xc8/255, alpha: 1) : .secondaryLabelColor
         closeBtn.target = self
         closeBtn.action = #selector(closeClicked)
         closeBtn.imageScaling = .scaleProportionallyDown

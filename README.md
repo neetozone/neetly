@@ -18,10 +18,6 @@ The code editor that works with agents and is meant for **web development**.
    ```bash
    /Applications/neetly.app/Contents/MacOS/neetly notify_neetly_of_claude_events
    ```
-   
-3. Open neetly from Applications.
-   > macOS may block the first launch with an "unidentified developer" warning (Gatekeeper).
-   > To bypass: right-click `neetly.app` → Open → Open, or run `xattr -dr com.apple.quarantine /Applications/neetly.app` once.
 
 ### Build from source
 

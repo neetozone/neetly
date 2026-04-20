@@ -46,8 +46,11 @@ swift run neetly-app
 
 ## Viewint the diff
 
-* Command+D is configured to show you the diff by executing `lazygit`. If you want to use a different tool for the diff
+* Cmd+D is configured to show you the diff by executing `lazygit`. If you want to use a different tool for the diff
   then you can configure it in **Settings**.
+* After viewing the diff you can close the diff by executing Cmd+Z.
+* Here is what Cmd+D does: opens a new terminal in the right most pane. Executes the **diff command** specified in the **Settings**. Hits Cmd+Shift+m to maximize the window.
+* Here is what Cmd+Z does: Hits Cmd+Shift+m to get out of the full screen mode and then kills that tab.
 
 ## Layout Config
 

@@ -33,8 +33,6 @@ ln -sf $(pwd)/.build/arm64-apple-macosx/debug/neetly /usr/local/bin/neetly
 swift run neetly-app
 ```
 
-On first launch, add a repo and configure its default layout. Repos are persisted at `~/.config/neetly/repos.json`.
-
 ## Tech Stack
 
 <p>

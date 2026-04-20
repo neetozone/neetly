@@ -1,6 +1,6 @@
 # neetly
 
-The code editor with terminal, browser, split panes and sensible notifications for building web applications with agents.
+The code editor that works with agents and is meant for **web development**.
 
 <p align="center">
   <a href="https://github.com/neetozone/neetly/releases/latest/download/neetly-macos.dmg">

@@ -12,7 +12,7 @@ The code editor that works with agents and is meant for **web development**.
 
 1. Download [neetly-macos.dmg](https://github.com/neetozone/neetly/releases/latest/download/neetly-macos.dmg) and open the DMG and drag `neetly.app` to Applications.
 2. Set up Claude Code notifications (one-time): Execute the following command to do a one-time setup. It adds hooks to `~/.claude/settings.json` so that neetly
-   is notified when Claude is done processing and is waiting. When Claude is done, the workspace tab turns "green". 
+   is notified when Claude is done processing and is waiting. When Claude is done, the workspace tab turns "green".
     If Claude is waiting for permission, then the workspace tab turns "red". Clicking a colored workspace tab also clears the color.
 
    ```bash
@@ -43,6 +43,11 @@ swift run neetly-app
  <a href="https://developer.apple.com/documentation/webkit/wkwebview"><img src="https://img.shields.io/badge/WKWebView-006AFF?logo=safari&logoColor=white" alt="WKWebView"></a>
  <a href="https://developer.apple.com/swift/"><img src="https://img.shields.io/badge/Swift_Package_Manager-F05138?logo=swift&logoColor=white" alt="SPM"></a>
 </p>
+
+## Viewint the diff
+
+* Command+D is configured to show you the diff by executing `lazygit`. If you want to use a different tool for the diff
+  then you can configure it in **Settings**.
 
 ## Layout Config
 
@@ -203,163 +208,12 @@ All fields are optional — omit any to use the default. The config is read when
   - `~/neetly/<repo-name>/<workspace-name>` — git worktrees are created here, one per workspace
 - **File watcher**: WKWebView (WebKit) does not support HMR (Hot Module Replacement) the way Chrome's DevTools protocol does, so neetly polls the repo every 2 seconds for changes to JavaScript/React/CSS files and triggers a browser reload when anything changes.
 
-# WKWebView
+# FAQ
 
-  WKWebView is Apple's modern web view component (introduced in iOS 8 / macOS 10.10), part of the WebKit framework. It replaced the older UIWebView.
+### What is WKWebView
 
-  ## Key Points
+### Why you are not using Google Chrome
 
-  - **Out-of-process rendering**: Runs web content in a separate process, so crashes don't kill your app and memory pressure is isolated.
-  - **Nitro JavaScript engine**: Same JIT-compiled JS engine as Safari — dramatically faster than UIWebView's interpreted JS.
-  - **Async APIs**: Navigation, script evaluation (`evaluateJavaScript:`), and message handling are all asynchronous.
-  - **JS ↔ native bridge**: `WKUserContentController` lets you inject scripts and receive messages from JS via `window.webkit.messageHandlers`.
-  - **Configuration**: `WKWebViewConfiguration` controls data stores, process pools, preferences, and content rules.
-  - **Cookies/storage**: `WKHTTPCookieStore` and `WKWebsiteDataStore` (including `.nonPersistent()` for private browsing).
-  - **Content blocking**: Supports declarative JSON-based content blockers compiled into bytecode.
-
-  ## Common Gotchas
-
-  - Cookies don't automatically sync with `HTTPCookieStorage` — you manage them via `WKHTTPCookieStore`.
-  - File/local content loading requires `loadFileURL:allowingReadAccessToURL:` or a custom `WKURLSchemeHandler`.
-  - POST body is stripped on cross-origin redirects.
-  - No direct synchronous JS evaluation — everything is callback/async-await based.
-
-  ## 1. JavaScript ↔ Native Bridge
-
-  ### Native → JS — Inject and execute JavaScript
-
-  ```swift
-  // One-off evaluation
-  webView.evaluateJavaScript("document.title") { result, error in
-      print(result as? String)
-  }
-
-  // async/await (iOS 15+)
-  let title = try await webView.evaluateJavaScript("document.title") as? String
-
-  JS → Native — Message handlers
-
-  // Swift side: register a handler
-  let controller = webView.configuration.userContentController
-  controller.add(self, name: "nativeAction")
-
-  // Conform to WKScriptMessageHandler
-  func userContentController(_ controller: WKScriptMessageHandler,
-                             didReceive message: WKScriptMessage) {
-      print(message.body) // whatever JS sent
-  }
-
-  // JS side: post a message
-  window.webkit.messageHandlers.nativeAction.postMessage({
-    action: "share",
-    url: "https://example.com"
-  });
-
-  User scripts — inject JS at document start or end
-
-  let script = WKUserScript(
-      source: "window.isNativeApp = true;",
-      injectionTime: .atDocumentStart,
-      forMainFrameOnly: true
-  )
-  controller.addUserScript(script)
-
-  2. Navigation & Delegates
-
-  Two delegates control behavior:
-
-  - WKNavigationDelegate — controls loading lifecycle:
-    - decidePolicyFor navigationAction — intercept link clicks, block/allow URLs, handle deep links
-    - didStartProvisionalNavigation, didFinish, didFail — track load progress
-    - didReceive challenge — handle SSL/auth challenges
-  - WKUIDelegate — handles UI events from web content:
-    - createWebViewWith configuration — handle target="_blank" links
-    - runJavaScriptAlertPanelWithMessage — custom alert/confirm/prompt dialogs
-
-  func webView(_ webView: WKWebView,
-               decidePolicyFor action: WKNavigationAction,
-               decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-      if action.navigationType == .linkActivated,
-         let url = action.request.url,
-         url.host != "myapp.com" {
-          UIApplication.shared.open(url)  // open external links in Safari
-          decisionHandler(.cancel)
-          return
-      }
-      decisionHandler(.allow)
-  }
-
-  3. Cookies & Storage
-
-  let dataStore = webView.configuration.websiteDataStore
-  let cookieStore = dataStore.httpCookieStore
-
-  // Set a cookie before loading
-  let cookie = HTTPCookie(properties: [
-      .name: "session",
-      .value: "abc123",
-      .domain: "myapp.com",
-      .path: "/",
-      .secure: true
-  ])!
-  await cookieStore.setCookie(cookie)
-
-  // Read all cookies
-  let cookies = await cookieStore.allCookies()
-
-  // Observe changes
-  cookieStore.add(self)  // WKHTTPCookieStoreObserver
-
-  Non-persistent (private browsing)
-
-  let config = WKWebViewConfiguration()
-  config.websiteDataStore = .nonPersistent()
-
-  4. Custom URL Schemes
-
-  Handle custom protocols like myapp:// for loading local resources:
-
-  class MySchemeHandler: NSObject, WKURLSchemeHandler {
-      func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
-          // Read from bundle, database, etc.
-          let data = loadResource(for: task.request.url!)
-          let response = URLResponse(url: task.request.url!, mimeType: "text/html",
-                                     expectedContentLength: data.count, textEncodingName: "utf-8")
-          task.didReceive(response)
-          task.didReceive(data)
-          task.didFinish()
-      }
-      func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
-  }
-
-  config.setURLSchemeHandler(MySchemeHandler(), forURLScheme: "myapp")
-
-  5. SwiftUI Integration (iOS 14+)
-
-  No first-party WKWebView SwiftUI wrapper, so you use UIViewRepresentable:
-
-  struct WebView: UIViewRepresentable {
-      let url: URL
-
-      func makeUIView(context: Context) -> WKWebView {
-          let webView = WKWebView()
-          webView.navigationDelegate = context.coordinator
-          return webView
-      }
-
-      func updateUIView(_ webView: WKWebView, context: Context) {
-          webView.load(URLRequest(url: url))
-      }
-
-      func makeCoordinator() -> Coordinator { Coordinator() }
-
-      class Coordinator: NSObject, WKNavigationDelegate { ... }
-  }
-
-  6. Performance Tips
-
-  - Reuse WKProcessPool across web views to share cookies/sessions.
-  - Pre-warm a web view at app launch (create one off-screen) — the first WKWebView init is expensive.
-  - Content rules (JSON blockers) are faster than intercepting requests in decidePolicyFor.
-  - WKWebpagePreferences.allowsContentJavaScript — disable JS for static content to save resources.
-
+Google chrome would be nice but that is a much more heavy lift. I noticed that
+WKWebView gets 98% of my work done. For the remaining 2% cases I open Google Chrome
+and do the work there.

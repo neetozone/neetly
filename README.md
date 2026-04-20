@@ -84,7 +84,7 @@ The left pane takes 35% of the width, the right pane takes the remaining 65%. If
 
 ## CLI Commands
 
-The `neetly` CLI runs from inside any terminal spawned by neetly. It communicates with the app via a Unix domain socket.
+The `neetly` CLI runs in any terminal spawned by' neetly'. It communicates with the app via a Unix domain socket.
 
 ### List tabs
 
@@ -116,7 +116,7 @@ neetly browser open http://localhost:3000 --background
 neetly visit http://localhost:3000
 ```
 
-### Send text to a terminal tab
+### Send commands to a terminal tab
 
 ```bash
 # Send "time" + Enter to tab 1
@@ -137,7 +137,7 @@ Change the workspace tab color to signal status across workspaces. Useful when C
 
 ```bash
 neetly notify              # green (task done)
-neetly notify red          # red (needs permission)
+neetly notify red          # red (Claude needs permission)
 neetly notify clear        # reset to normal
 ```
 

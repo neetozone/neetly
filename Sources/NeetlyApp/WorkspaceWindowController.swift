@@ -533,9 +533,12 @@ class WorkspaceWindowController: NSWindowController {
     private func selectWorkspace(at index: Int) {
         guard index >= 0 && index < workspaces.count else { return }
 
-        // Remove current content
-        if activeIndex >= 0 && activeIndex < workspaces.count {
-            workspaces[activeIndex].splitTree.view.removeFromSuperview()
+        // Detach every workspace's splitTree view from contentArea before adding
+        // the new one. removeFromSuperview is a no-op when the view isn't
+        // attached, so this is cheap — and it guarantees no stale view is left
+        // behind if activeIndex ever got out of sync with what's in the hierarchy.
+        for ws in workspaces {
+            ws.splitTree.view.removeFromSuperview()
         }
 
         activeIndex = index
@@ -564,12 +567,21 @@ class WorkspaceWindowController: NSWindowController {
         let cfg = workspaces[index].config
         WorkspaceStore.shared.remove(repoPath: cfg.repoPath, workspaceName: cfg.workspaceName)
 
-        if index == activeIndex {
-            workspaces[index].splitTree.view.removeFromSuperview()
+        // Detach the currently-active view from contentArea before we mutate
+        // the array. Otherwise, if `index < activeIndex`, the removal shifts
+        // activeIndex onto a different workspace and the previously-active
+        // view stays stuck in contentArea.
+        if activeIndex >= 0 && activeIndex < workspaces.count {
+            workspaces[activeIndex].splitTree.view.removeFromSuperview()
         }
 
         workspaces[index].stop()
         workspaces.remove(at: index)
+
+        // If a workspace before the active one was closed, the active one shifted down.
+        if index < activeIndex {
+            activeIndex -= 1
+        }
 
         if workspaces.isEmpty {
             activeIndex = -1
@@ -580,7 +592,7 @@ class WorkspaceWindowController: NSWindowController {
             diffStatsTimer = nil
             refreshTabBar()
         } else {
-            activeIndex = min(activeIndex, workspaces.count - 1)
+            activeIndex = min(max(0, activeIndex), workspaces.count - 1)
             selectWorkspace(at: activeIndex)
         }
     }

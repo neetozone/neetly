@@ -120,6 +120,40 @@ struct SetupView: View {
     }
 }
 
+// MARK: - Window Sizer
+
+/// Grows the hosting window downward to fit a target content height,
+/// clamped to the screen's visible area (minus a bottom margin). Only
+/// grows — never shrinks — so user manual resizes aren't fought.
+private struct WindowHeightSizer: NSViewRepresentable {
+    let targetHeight: CGFloat
+
+    func makeNSView(context: Context) -> NSView { NSView() }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        let target = targetHeight
+        DispatchQueue.main.async {
+            guard let window = nsView.window else { return }
+            guard let screen = window.screen ?? NSScreen.main else { return }
+
+            let bottomMargin: CGFloat = 80
+            let baseHeight: CGFloat = 600
+            let maxHeight = max(baseHeight, screen.visibleFrame.height - bottomMargin)
+            let clamped = min(max(target, baseHeight), maxHeight)
+
+            let current = window.frame
+            guard clamped > current.height + 1 else { return }
+
+            // Keep the title bar fixed; extend downward. If that would push
+            // the bottom off-screen, pin to the visible frame's minY.
+            let topY = current.maxY
+            let newY = max(topY - clamped, screen.visibleFrame.minY)
+            let newFrame = NSRect(x: current.minX, y: newY, width: current.width, height: clamped)
+            window.setFrame(newFrame, display: true, animate: true)
+        }
+    }
+}
+
 // MARK: - Screen 1: Repo List
 
 struct RepoListScreen: View {
@@ -231,6 +265,9 @@ struct RepoListScreen: View {
             }
         }
         .frame(minWidth: 700, minHeight: 600)
+        // Header + divider + list chrome ≈ 170pt; each row ≈ 80pt.
+        // Overshooting is safe — WindowHeightSizer clamps to screen.
+        .background(WindowHeightSizer(targetHeight: 170 + CGFloat(repos.count) * 80))
     }
 }
 

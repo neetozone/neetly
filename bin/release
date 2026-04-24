@@ -2,7 +2,19 @@
 set -euo pipefail
 
 REPO="neetozone/neetly"
-SPARKLE_BIN=".sparkle-tools/bin"
+
+# Locate Sparkle's sign_update. Prefer the binary shipped with the Sparkle SPM
+# artifact (populated by `swift build`); fall back to the legacy
+# .sparkle-tools/bin location if someone maintains that out-of-tree copy.
+SPARKLE_ARTIFACT_BIN=".build/artifacts/sparkle/Sparkle/bin/sign_update"
+SPARKLE_FALLBACK_BIN=".sparkle-tools/bin/sign_update"
+if [ -x "$SPARKLE_ARTIFACT_BIN" ]; then
+    SIGN_UPDATE="$SPARKLE_ARTIFACT_BIN"
+elif [ -x "$SPARKLE_FALLBACK_BIN" ]; then
+    SIGN_UPDATE="$SPARKLE_FALLBACK_BIN"
+else
+    SIGN_UPDATE=""
+fi
 
 # Get the latest release tag and bump the patch version
 LATEST=$(gh release list --repo "$REPO" --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "v0.0.0")
@@ -21,17 +33,21 @@ echo ""
 echo "==> Building release..."
 bash scripts/build-dmg.sh "$NEW_VERSION"
 
-# Sign the DMG using Sparkle's sign_update
-if [ -x "$SPARKLE_BIN/sign_update" ]; then
-    echo ""
-    echo "==> Signing DMG with Sparkle EdDSA key..."
-    # -p prints just the signature attribute (without length which we already have)
-    SIGNATURE=$("$SPARKLE_BIN/sign_update" -p neetly-macos.dmg)
-    echo "sparkle:edSignature=\"$SIGNATURE\""
-else
-    echo "==> WARNING: sign_update not found at $SPARKLE_BIN/sign_update"
-    SIGNATURE=""
+# Sign the DMG using Sparkle's sign_update. Aborts the release if the tool or
+# the private key (stored in the macOS Keychain) can't produce a signature —
+# an unsigned appcast would break auto-update for existing users.
+if [ -z "$SIGN_UPDATE" ]; then
+    echo "ERROR: sign_update not found. Run 'swift build' to populate $SPARKLE_ARTIFACT_BIN." >&2
+    exit 1
 fi
+echo ""
+echo "==> Signing DMG with Sparkle EdDSA key ($SIGN_UPDATE)..."
+SIGNATURE=$("$SIGN_UPDATE" -p neetly-macos.dmg)
+if [ -z "$SIGNATURE" ]; then
+    echo "ERROR: sign_update returned an empty signature (is the private key in the Keychain?)" >&2
+    exit 1
+fi
+echo "sparkle:edSignature=\"$SIGNATURE\""
 
 # Generate appcast.xml
 echo ""

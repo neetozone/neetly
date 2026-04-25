@@ -34,9 +34,45 @@ class GitWorktree {
             .sorted()
     }
 
-    /// Returns the on-disk worktree path for a given workspace name.
-    static func worktreePath(repoName: String, workspaceName: String) -> String {
-        return "\(NeetlySettings.shared.worktreeBaseDir)/\(repoName)/\(workspaceName)"
+    /// Returns the on-disk worktree path for a given worktree name.
+    static func worktreePath(repoName: String, worktreeName: String) -> String {
+        return "\(NeetlySettings.shared.worktreeBaseDir)/\(repoName)/\(worktreeName)"
+    }
+
+    /// Convert a free-form workspace name to a sanitized, git-branch-safe slug.
+    static func sanitizeForWorktree(_ name: String) -> String {
+        return name
+            .replacingOccurrences(of: " ", with: "-")
+            .replacingOccurrences(of: "..", with: "-")
+            .filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == "/" || $0 == "." }
+    }
+
+    /// Maximum length of a worktree name (and matching git branch).
+    static let maxWorktreeNameLength = 30
+
+    /// Pick a worktree name that doesn't collide with an existing on-disk
+    /// worktree for this repo. The result is always ≤ `maxWorktreeNameLength`,
+    /// truncating the base as needed to make room for any `-N` suffix.
+    static func uniqueWorktreeName(for repoName: String, baseName: String) -> String {
+        let sanitized = sanitizeForWorktree(baseName)
+        guard !sanitized.isEmpty else { return sanitized }
+        let parent = "\(NeetlySettings.shared.worktreeBaseDir)/\(repoName)"
+        let max = maxWorktreeNameLength
+
+        let base = String(sanitized.prefix(max))
+        if !FileManager.default.fileExists(atPath: "\(parent)/\(base)") {
+            return base
+        }
+        var i = 1
+        while true {
+            let suffix = "-\(i)"
+            let trimmed = String(sanitized.prefix(max - suffix.count))
+            let candidate = "\(trimmed)\(suffix)"
+            if !FileManager.default.fileExists(atPath: "\(parent)/\(candidate)") {
+                return candidate
+            }
+            i += 1
+        }
     }
 
     /// Returns (additions, deletions) of uncommitted changes vs HEAD, or nil on error.
@@ -102,8 +138,8 @@ class GitWorktree {
     /// Delete a worktree: run `git worktree remove --force` from the parent repo,
     /// then `rm -rf` as a fallback if anything is left. Also removes Claude
     /// Code's per-project folder under ~/.claude/projects if present.
-    static func deleteWorktree(parentRepoPath: String, repoName: String, workspaceName: String) -> Bool {
-        let path = worktreePath(repoName: repoName, workspaceName: workspaceName)
+    static func deleteWorktree(parentRepoPath: String, repoName: String, worktreeName: String) -> Bool {
+        let path = worktreePath(repoName: repoName, worktreeName: worktreeName)
 
         // Try git worktree remove first (proper way — also unregisters from parent repo)
         let helper = GitWorktree(repoPath: parentRepoPath)
@@ -153,13 +189,10 @@ class GitWorktree {
         }
     }
 
-    func createWorktree(workspaceName: String, pullMain: Bool = true) -> WorktreeResult {
-        // Sanitize workspace name for git branch: replace spaces with hyphens, strip invalid chars
-        let branchName = workspaceName
-            .replacingOccurrences(of: " ", with: "-")
-            .replacingOccurrences(of: "..", with: "-")
-            .filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == "/" || $0 == "." }
-
+    /// Caller is expected to pass an already-sanitized, collision-free worktree
+    /// name (see `uniqueWorktreeName`). The branch and directory both use this name.
+    func createWorktree(worktreeName: String, pullMain: Bool = true) -> WorktreeResult {
+        let branchName = worktreeName
         let worktreePath = "\(NeetlySettings.shared.worktreeBaseDir)/\(repoName)/\(branchName)"
 
         // If worktree already exists, just use it

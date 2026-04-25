@@ -70,7 +70,7 @@ class Workspace {
             self.prInfo = info
             WorkspaceStore.shared.updatePRInfo(
                 repoPath: self.config.repoPath,
-                workspaceName: self.config.workspaceName,
+                worktreeName: self.config.worktreeName,
                 prInfo: info
             )
             if let info = info {
@@ -529,6 +529,7 @@ class WorkspaceWindowController: NSWindowController {
             repoPath: config.repoPath,
             repoName: config.repoName,
             workspaceName: config.workspaceName,
+            worktreeName: config.worktreeName,
             layoutText: config.layoutText,
             autoReloadOnFileChange: config.autoReloadOnFileChange
         ))
@@ -604,9 +605,10 @@ class WorkspaceWindowController: NSWindowController {
     private func closeWorkspace(at index: Int) {
         guard index >= 0 && index < workspaces.count else { return }
 
-        // Remove from workspace store
+        // Mark as detached (keep in store so it stays in the workspace list,
+        // but won't auto-reopen on next app launch).
         let cfg = workspaces[index].config
-        WorkspaceStore.shared.remove(repoPath: cfg.repoPath, workspaceName: cfg.workspaceName)
+        WorkspaceStore.shared.markClosed(repoPath: cfg.repoPath, worktreeName: cfg.worktreeName)
 
         // Detach the currently-active view from contentArea before we mutate
         // the array. Otherwise, if `index < activeIndex`, the removal shifts

@@ -3,10 +3,16 @@ import Foundation
 struct SavedWorkspace: Codable, Equatable {
     let repoPath: String
     let repoName: String
+    /// Free-form display label.
     let workspaceName: String
+    /// Sanitized identity / on-disk directory name. Unique within a repo.
+    let worktreeName: String
     let layoutText: String
     let autoReloadOnFileChange: Bool
     var prInfo: GitHubPRInfo? = nil
+    /// True if currently attached. Drives auto-restore on app launch.
+    /// Detached workspaces stay in the store so they remain in the list.
+    var isOpen: Bool = true
 }
 
 class WorkspaceStore {
@@ -41,21 +47,32 @@ class WorkspaceStore {
 
     func add(_ ws: SavedWorkspace) {
         var all = load()
-        all.removeAll { $0.repoPath == ws.repoPath && $0.workspaceName == ws.workspaceName }
+        all.removeAll { $0.repoPath == ws.repoPath && $0.worktreeName == ws.worktreeName }
         all.append(ws)
         save(all)
     }
 
-    func remove(repoPath: String, workspaceName: String) {
+    func remove(repoPath: String, worktreeName: String) {
         var all = load()
-        all.removeAll { $0.repoPath == repoPath && $0.workspaceName == workspaceName }
+        all.removeAll { $0.repoPath == repoPath && $0.worktreeName == worktreeName }
         save(all)
     }
 
-    func updatePRInfo(repoPath: String, workspaceName: String, prInfo: GitHubPRInfo?) {
+    /// Mark a workspace as detached so it doesn't auto-restore next launch,
+    /// but keep its entry so it stays visible in the workspace list.
+    func markClosed(repoPath: String, worktreeName: String) {
         var all = load()
         guard let idx = all.firstIndex(where: {
-            $0.repoPath == repoPath && $0.workspaceName == workspaceName
+            $0.repoPath == repoPath && $0.worktreeName == worktreeName
+        }) else { return }
+        all[idx].isOpen = false
+        save(all)
+    }
+
+    func updatePRInfo(repoPath: String, worktreeName: String, prInfo: GitHubPRInfo?) {
+        var all = load()
+        guard let idx = all.firstIndex(where: {
+            $0.repoPath == repoPath && $0.worktreeName == worktreeName
         }) else { return }
         all[idx].prInfo = prInfo
         save(all)

@@ -19,7 +19,11 @@ indirect enum LayoutNode {
 struct WorkspaceConfig {
     let repoPath: String
     let repoName: String
+    /// Free-form display label shown in tabs and titles.
     let workspaceName: String
+    /// Sanitized, on-disk-unique identifier — also the git branch name and
+    /// the last path component of `repoPath`.
+    let worktreeName: String
     let layout: LayoutNode
     let layoutText: String
     let autoReloadOnFileChange: Bool

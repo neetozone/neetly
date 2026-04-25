@@ -61,15 +61,16 @@ struct SetupView: View {
         case .workspaceList(let repo):
             WorkspaceListScreen(
                 repo: repo,
-                onSelectWorkspace: { workspaceName in
+                onSelectWorkspace: { workspaceName, worktreeName in
                     let parser = LayoutParser()
                     let dedented = dedent(repo.layoutText)
                     guard let layout = parser.parse(dedented) else { return }
-                    let worktreePath = GitWorktree.worktreePath(repoName: repo.name, workspaceName: workspaceName)
+                    let worktreePath = GitWorktree.worktreePath(repoName: repo.name, worktreeName: worktreeName)
                     let config = WorkspaceConfig(
                         repoPath: worktreePath,
                         repoName: repo.name,
                         workspaceName: workspaceName,
+                        worktreeName: worktreeName,
                         layout: layout,
                         layoutText: repo.layoutText,
                         autoReloadOnFileChange: true
@@ -83,7 +84,7 @@ struct SetupView: View {
         case .workspaceName(let repo):
             WorkspaceNameScreen(
                 repo: repo,
-                onStart: { workspaceName, layoutText, autoReload, worktreePath in
+                onStart: { workspaceName, worktreeName, layoutText, autoReload, worktreePath in
                     let parser = LayoutParser()
                     let dedented = dedent(layoutText)
                     guard let layout = parser.parse(dedented) else { return }
@@ -93,6 +94,7 @@ struct SetupView: View {
                         repoPath: worktreePath,
                         repoName: repo.name,
                         workspaceName: workspaceName,
+                        worktreeName: worktreeName,
                         layout: layout,
                         layoutText: layoutText,
                         autoReloadOnFileChange: autoReload
@@ -369,8 +371,8 @@ struct WorkspaceNameScreen: View {
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
     @FocusState private var isNameFocused: Bool
-    /// (workspaceName, layoutText, autoReload, worktreePath)
-    var onStart: (String, String, Bool, String) -> Void
+    /// (workspaceName, worktreeName, layoutText, autoReload, worktreePath)
+    var onStart: (String, String, String, Bool, String) -> Void
     var onBack: () -> Void
 
     var body: some View {
@@ -399,10 +401,9 @@ struct WorkspaceNameScreen: View {
                     .onSubmit { startWorkspace() }
                     .disabled(isLoading)
                     .onChange(of: workspaceName) { _, newValue in
-                        // Live validation: update the error as the user types.
                         let trimmed = newValue.trimmingCharacters(in: .whitespaces)
-                        if trimmed.count > 30 {
-                            errorMessage = "Workspace name must be 30 characters or fewer (current: \(trimmed.count))."
+                        if trimmed.count > 60 {
+                            errorMessage = "Workspace name must be 60 characters or fewer (current: \(trimmed.count))."
                         } else {
                             errorMessage = nil
                         }
@@ -437,7 +438,7 @@ struct WorkspaceNameScreen: View {
 
             if let error = errorMessage {
                 Text(error)
-                    .font(.system(size: 13))
+                    .font(.system(size: 20))
                     .foregroundColor(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -477,8 +478,14 @@ struct WorkspaceNameScreen: View {
             errorMessage = "Please provide a workspace name."
             return
         }
-        guard name.count <= 30 else {
-            errorMessage = "Workspace name must be 30 characters or fewer (current: \(name.count))."
+        guard name.count <= 60 else {
+            errorMessage = "Workspace name must be 60 characters or fewer (current: \(name.count))."
+            return
+        }
+
+        let worktreeName = GitWorktree.uniqueWorktreeName(for: repo.name, baseName: name)
+        guard !worktreeName.isEmpty else {
+            errorMessage = "Workspace name produces an empty worktree slug — try different characters."
             return
         }
 
@@ -487,13 +494,12 @@ struct WorkspaceNameScreen: View {
         DispatchQueue.global(qos: .userInitiated).async {
             // Create git worktree (runs git checkout, pull, worktree add)
             let git = GitWorktree(repoPath: repo.path)
-            let result = git.createWorktree(workspaceName: name, pullMain: repo.pullMainBeforeWork)
+            let result = git.createWorktree(worktreeName: worktreeName, pullMain: repo.pullMainBeforeWork)
 
             DispatchQueue.main.async {
                 switch result {
                 case .success(let path):
-                    // Pass worktree path to onStart
-                    onStart(name, layoutText, autoReload, path)
+                    onStart(name, worktreeName, layoutText, autoReload, path)
                 case .failure(let message):
                     errorMessage = message
                     isLoading = false
@@ -562,41 +568,40 @@ struct EditLayoutScreen: View {
 // MARK: - Screen 5: Workspace List (existing workspaces for a repo)
 
 struct WorkspaceListEntry: Identifiable {
-    let name: String
+    let workspaceName: String
+    let worktreeName: String
     var prInfo: GitHubPRInfo?
-    var id: String { name }
+    var id: String { worktreeName }
 }
 
 struct WorkspaceListScreen: View {
     let repo: RepoConfig
     @State private var workspaces: [WorkspaceListEntry] = []
-    @State private var workspaceToDelete: String?
-    var onSelectWorkspace: (String) -> Void
+    @State private var workspaceToDelete: WorkspaceListEntry?
+    /// Called with (workspaceName, worktreeName).
+    var onSelectWorkspace: (String, String) -> Void
     var onAddWorkspace: () -> Void
     var onBack: () -> Void
 
     private func loadWorkspaces() -> [WorkspaceListEntry] {
-        let names = GitWorktree.listWorktrees(for: repo.name)
-        let saved = WorkspaceStore.shared.load()
-        return names.map { name in
-            let pr = saved.first { $0.repoName == repo.name && $0.workspaceName == name }?.prInfo
-            return WorkspaceListEntry(name: name, prInfo: pr)
-        }
+        return WorkspaceStore.shared.load()
+            .filter { $0.repoName == repo.name }
+            .map { WorkspaceListEntry(workspaceName: $0.workspaceName, worktreeName: $0.worktreeName, prInfo: $0.prInfo) }
     }
 
     private func fetchMissingPRInfo() {
         let repoName = repo.name
         for entry in workspaces where entry.prInfo == nil {
-            let worktreePath = GitWorktree.worktreePath(repoName: repoName, workspaceName: entry.name)
-            let name = entry.name
+            let worktreePath = GitWorktree.worktreePath(repoName: repoName, worktreeName: entry.worktreeName)
+            let worktreeName = entry.worktreeName
             GitHubPRResolver.resolve(worktreePath: worktreePath) { info in
                 guard let info = info else { return }
-                if let idx = workspaces.firstIndex(where: { $0.name == name }) {
+                if let idx = workspaces.firstIndex(where: { $0.worktreeName == worktreeName }) {
                     workspaces[idx].prInfo = info
                 }
                 WorkspaceStore.shared.updatePRInfo(
                     repoPath: worktreePath,
-                    workspaceName: name,
+                    worktreeName: worktreeName,
                     prInfo: info
                 )
             }
@@ -644,17 +649,17 @@ struct WorkspaceListScreen: View {
             } else {
                 List {
                     ForEach(workspaces) { entry in
-                        Button(action: { onSelectWorkspace(entry.name) }) {
+                        Button(action: { onSelectWorkspace(entry.workspaceName, entry.worktreeName) }) {
                             HStack {
                                 HStack(spacing: 10) {
-                                    Text(entry.name)
+                                    Text(entry.workspaceName)
                                         .font(.system(size: 22, weight: .semibold))
                                     if let pr = entry.prInfo {
                                         PRBadge(prInfo: pr)
                                     }
                                     Menu {
                                         Button(role: .destructive, action: {
-                                            workspaceToDelete = entry.name
+                                            workspaceToDelete = entry
                                         }) {
                                             Label("Delete Workspace", systemImage: "trash")
                                         }
@@ -685,23 +690,22 @@ struct WorkspaceListScreen: View {
             workspaces = loadWorkspaces()
             fetchMissingPRInfo()
         }
-        .sheet(item: Binding(
-            get: { workspaceToDelete.map { DeleteTarget(name: $0) } },
-            set: { workspaceToDelete = $0?.name }
-        )) { target in
+        .sheet(item: $workspaceToDelete) { target in
             DeleteWorktreeSheet(
                 repoName: repo.name,
-                workspaceName: target.name,
+                workspaceName: target.workspaceName,
+                worktreeName: target.worktreeName,
                 onCancel: { workspaceToDelete = nil },
                 onDelete: {
-                    // Optimistically remove from the visible list immediately
-                    let nameToDelete = target.name
-                    ActivityStore.shared.log(.workspaceDeleted, repoName: repo.name, detail: nameToDelete)
-                    workspaces.removeAll { $0.name == nameToDelete }
+                    let workspaceLabel = target.workspaceName
+                    let worktreeName = target.worktreeName
+                    ActivityStore.shared.log(.workspaceDeleted, repoName: repo.name, detail: workspaceLabel)
+                    workspaces.removeAll { $0.worktreeName == worktreeName }
                     workspaceToDelete = nil
 
                     // Close the workspace if currently open (must be on main thread)
-                    let worktreePath = GitWorktree.worktreePath(repoName: repo.name, workspaceName: nameToDelete)
+                    let worktreePath = GitWorktree.worktreePath(repoName: repo.name, worktreeName: worktreeName)
+                    WorkspaceStore.shared.remove(repoPath: worktreePath, worktreeName: worktreeName)
                     if let appDelegate = NSApp.delegate as? AppDelegate {
                         appDelegate.workspaceWindowController?.closeWorkspaceByPath(worktreePath)
                     }
@@ -713,7 +717,7 @@ struct WorkspaceListScreen: View {
                         _ = GitWorktree.deleteWorktree(
                             parentRepoPath: repoPath,
                             repoName: repoName,
-                            workspaceName: nameToDelete
+                            worktreeName: worktreeName
                         )
                     }
                 }
@@ -722,26 +726,22 @@ struct WorkspaceListScreen: View {
     }
 }
 
-private struct DeleteTarget: Identifiable {
-    let name: String
-    var id: String { name }
-}
-
 struct DeleteWorktreeSheet: View {
     let repoName: String
     let workspaceName: String
+    let worktreeName: String
     var onCancel: () -> Void
     var onDelete: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Deleting Workspace?")
+            Text("Delete \(workspaceName)?")
                 .font(.system(size: 20, weight: .semibold))
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("This will delete the worktree at:")
                     .font(.system(size: 14))
-                Text(GitWorktree.worktreePath(repoName: repoName, workspaceName: workspaceName)
+                Text(GitWorktree.worktreePath(repoName: repoName, worktreeName: worktreeName)
                     .replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~"))
                     .font(.system(size: 13, design: .monospaced))
                     .foregroundColor(.secondary)

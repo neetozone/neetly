@@ -13,11 +13,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupMainMenu()
         setupEscapeKeyMonitor()
 
-        let saved = WorkspaceStore.shared.load()
-        if saved.isEmpty {
+        let toRestore = WorkspaceStore.shared.load().filter { $0.isOpen }
+        if toRestore.isEmpty {
             showSetupWindow()
         } else {
-            restoreWorkspaces(saved)
+            restoreWorkspaces(toRestore)
         }
     }
 
@@ -30,6 +30,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 repoPath: ws.repoPath,
                 repoName: ws.repoName,
                 workspaceName: ws.workspaceName,
+                worktreeName: ws.worktreeName,
                 layout: layout,
                 layoutText: ws.layoutText,
                 autoReloadOnFileChange: ws.autoReloadOnFileChange

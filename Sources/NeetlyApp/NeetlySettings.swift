@@ -15,6 +15,9 @@ class NeetlySettings {
     private struct Settings: Codable {
         var worktreeBaseDir: String
         var diffCommand: String?
+        /// Shell command to run after a worktree is created. The variable
+        /// `$WORKTREE_DIRECTORY` is set to the new worktree's absolute path.
+        var postWorktreeCreateCommand: String?
     }
 
     static var defaultWorktreeBaseDir: String {
@@ -40,6 +43,16 @@ class NeetlySettings {
     func setDiffCommand(_ command: String) {
         var s = load()
         s.diffCommand = command
+        save(s)
+    }
+
+    var postWorktreeCreateCommand: String {
+        load().postWorktreeCreateCommand ?? ""
+    }
+
+    func setPostWorktreeCreateCommand(_ command: String) {
+        var s = load()
+        s.postWorktreeCreateCommand = command
         save(s)
     }
 

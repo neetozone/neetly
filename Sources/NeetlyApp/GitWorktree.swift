@@ -198,6 +198,7 @@ class GitWorktree {
         // If worktree already exists, just use it
         if FileManager.default.fileExists(atPath: worktreePath) {
             NSLog("GitWorktree: worktree already exists at \(worktreePath)")
+            runPostCreateCommand(at: worktreePath)
             return .success(path: worktreePath)
         }
 
@@ -242,6 +243,7 @@ class GitWorktree {
         NSLog("GitWorktree: \(cmd1) → \(result1)")
 
         if result1.success {
+            runPostCreateCommand(at: worktreePath)
             return .success(path: worktreePath)
         }
 
@@ -251,10 +253,21 @@ class GitWorktree {
         NSLog("GitWorktree: \(cmd2) → \(result2)")
 
         if result2.success {
+            runPostCreateCommand(at: worktreePath)
             return .success(path: worktreePath)
         }
 
         return .failure(message: "Failed: \(result1.output) / \(result2.output)")
+    }
+
+    /// Run the user-configured post-create command (Settings → Post-Create
+    /// Command) with `$WORKTREE_DIRECTORY` set to the new worktree's path.
+    /// Best-effort: failures log but don't block. No-op when unconfigured.
+    private func runPostCreateCommand(at path: String) {
+        let cmd = NeetlySettings.shared.postWorktreeCreateCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cmd.isEmpty else { return }
+        let result = shell(cmd, in: repoPath, extraEnv: ["WORKTREE_DIRECTORY": path])
+        NSLog("GitWorktree: post-create command → \(result)")
     }
 
     private func detectDefaultBranch() -> String {
@@ -279,11 +292,15 @@ class GitWorktree {
     }
 
     /// Run a shell command via /bin/zsh -c to get proper PATH and env.
-    private func shell(_ command: String, in directory: String) -> ShellResult {
+    /// Pass `extraEnv` to add or override environment variables for the child.
+    private func shell(_ command: String, in directory: String, extraEnv: [String: String]? = nil) -> ShellResult {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
         process.arguments = ["-l", "-c", command]
         process.currentDirectoryURL = URL(fileURLWithPath: directory)
+        if let extraEnv {
+            process.environment = ProcessInfo.processInfo.environment.merging(extraEnv) { _, new in new }
+        }
 
         let outPipe = Pipe()
         let errPipe = Pipe()

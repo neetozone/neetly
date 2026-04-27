@@ -768,6 +768,7 @@ struct DeleteWorktreeSheet: View {
 struct SettingsScreen: View {
     @State private var worktreeDir: String = NeetlySettings.shared.worktreeBaseDir
     @State private var diffCommand: String = NeetlySettings.shared.diffCommand
+    @State private var postCreateCommand: String = NeetlySettings.shared.postWorktreeCreateCommand
     @State private var message: String?
     @State private var messageIsError: Bool = false
     var onBack: () -> Void
@@ -809,6 +810,18 @@ struct SettingsScreen: View {
                                 .font(.system(size: 15, design: .monospaced))
                             Button("Browse...") { pickDirectory() }
                         }
+                    }
+
+                    // Post-create command
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Post-Create Command")
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Runs after a new worktree is created. Use $WORKTREE_DIRECTORY for the worktree's absolute path. Leave blank to skip. A common use case is running mise trust $WORKTREE_DIRECTORY for the folks who use mise to manage their Ruby versions.")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                        TextField("e.g. mise trust $WORKTREE_DIRECTORY", text: $postCreateCommand)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 15, design: .monospaced))
                     }
 
                     Divider()
@@ -900,6 +913,10 @@ struct SettingsScreen: View {
 
             let cmd = diffCommand.trimmingCharacters(in: .whitespaces)
             NeetlySettings.shared.setDiffCommand(cmd.isEmpty ? NeetlySettings.defaultDiffCommand : cmd)
+
+            NeetlySettings.shared.setPostWorktreeCreateCommand(
+                postCreateCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
 
             message = "Settings saved."
             messageIsError = false

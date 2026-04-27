@@ -141,7 +141,7 @@ func printUsage() {
     fputs("  browser open <url> [--pane N] [--background]  Open a browser tab\n", stderr)
     fputs("  visit <url> [--pane N] [--background]  Alias for browser open\n", stderr)
     fputs("  run <command>                          Open a terminal tab\n", stderr)
-    fputs("  notify [color]                         Set workspace tab color (green/red/yellow/blue/orange/clear)\n", stderr)
+    fputs("  notify [color]                         Set session tab color (green/red/yellow/blue/orange/clear)\n", stderr)
     fputs("  notify_neetly_of_claude_events         Add Claude Code hooks to ~/.claude/settings.json\n", stderr)
 }
 
@@ -336,9 +336,9 @@ func setupClaudeHooks() {
         try data.write(to: settingsPath, options: .atomic)
         print("Added neetly hooks to ~/.claude/settings.json")
         print("")
-        print("  Stop              → workspace tab turns green")
-        print("  permission_prompt → workspace tab turns red")
-        print("  UserPromptSubmit  → workspace tab resets")
+        print("  Stop              → session tab turns green")
+        print("  permission_prompt → session tab turns red")
+        print("  UserPromptSubmit  → session tab resets")
     } catch {
         fputs("Error writing ~/.claude/settings.json: \(error)\n", stderr)
         exit(1)

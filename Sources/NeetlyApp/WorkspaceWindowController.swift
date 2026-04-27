@@ -168,7 +168,7 @@ class WorkspaceTabBar: NSView {
         layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
 
         plusButton.title = "+"
-        plusButton.toolTip = "New Workspace"
+        plusButton.toolTip = "New Session"
         plusButton.bezelStyle = .recessed
         plusButton.font = .systemFont(ofSize: 14, weight: .medium)
         plusButton.target = self
@@ -205,7 +205,7 @@ class WorkspaceTabBar: NSView {
         }
 
         if workspaces.isEmpty {
-            plusButton.title = "+ Add new workspace"
+            plusButton.title = "+ Add new session"
             plusButton.font = .systemFont(ofSize: 14, weight: .medium)
             plusButton.sizeToFit()
         } else {
@@ -389,7 +389,7 @@ private class WorkspaceTab: NSView {
         wsLabel.frame = NSRect(x: 8, y: wsY, width: 140, height: 17)
         addSubview(wsLabel)
 
-        closeBtn.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Detach workspace")
+        closeBtn.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Detach session")
         closeBtn.imagePosition = .imageOnly
         closeBtn.isBordered = false
         closeBtn.contentTintColor = hasStatusColor ? .black.withAlphaComponent(0.6) : isActive ? NSColor(red: 0xa6/255, green: 0xad/255, blue: 0xc8/255, alpha: 1) : .secondaryLabelColor
@@ -397,7 +397,7 @@ private class WorkspaceTab: NSView {
         closeBtn.action = #selector(closeClicked)
         closeBtn.imageScaling = .scaleProportionallyDown
         closeBtn.isHidden = true
-        closeBtn.toolTip = "Detach Workspace"
+        closeBtn.toolTip = "Detach Session"
         closeBtn.frame = NSRect(x: 0, y: (totalHeight - 18) / 2, width: 18, height: 18)
         addSubview(closeBtn)
 

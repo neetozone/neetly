@@ -12,8 +12,8 @@ The code editor that works with agents and is meant for **web development**.
 
 1. Download [neetly-macos.dmg](https://github.com/neetozone/neetly/releases/latest/download/neetly-macos.dmg) and open the DMG and drag `neetly.app` to Applications.
 2. Set up Claude Code notifications (one-time): Execute the following command to do a one-time setup. It adds hooks to `~/.claude/settings.json` so that neetly
-   is notified when Claude is done processing and is waiting. When Claude is done, the workspace tab turns "green".
-    If Claude is waiting for permission, then the workspace tab turns "red". Clicking a colored workspace tab also clears the color.
+   is notified when Claude is done processing and is waiting. When Claude is done, the session tab turns "green".
+    If Claude is waiting for permission, then the session tab turns "red". Clicking a colored session tab also clears the color.
 
    ```bash
    /Applications/neetly.app/Contents/MacOS/neetly notify_neetly_of_claude_events
@@ -139,9 +139,9 @@ neetly send 1 "time\n"
 neetly run "npm test"
 ```
 
-### Workspace notifications
+### Session notifications
 
-Change the workspace tab color to signal status across workspaces. Useful when Claude finishes a task while you're working in another workspace.
+Change the session tab color to signal status across sessions. Useful when Claude finishes a task while you're working in another session.
 
 ```bash
 neetly notify              # green (task done)
@@ -165,7 +165,7 @@ neetly notify clear        # reset to normal
 ## Taxonomy
 
 ```
-Workspace (named after your feature/bug, multiple per window)
+Session (named after your feature/bug, multiple per window)
   Pane (a rectangular region, split horizontally or vertically)
     Tab (terminal or browser — multiple per pane, one visible at a time)
 ```
@@ -206,9 +206,9 @@ All fields are optional — omit any to use the default. The config is read when
 - **IPC**: Unix domain socket at `/tmp/neetly-<pid>.sock`
 - **Persistence**:
   - `~/.config/neetly/repos.json` — list of added repos and their default layouts
-  - `~/.config/neetly/workspaces.json` — open workspaces, restored on relaunch
+  - `~/.config/neetly/workspaces.json` — open sessions, restored on relaunch
   - `~/.config/neetly/terminal.json` — terminal font and color overrides
-  - `~/neetly/<repo-name>/<workspace-name>` — git worktrees are created here, one per workspace
+  - `~/neetly/<repo-name>/<session-name>` — git worktrees are created here, one per session
 - **File watcher**: WKWebView (WebKit) does not support HMR (Hot Module Replacement) the way Chrome's DevTools protocol does, so neetly polls the repo every 2 seconds for changes to JavaScript/React/CSS files and triggers a browser reload when anything changes.
 
 # FAQ

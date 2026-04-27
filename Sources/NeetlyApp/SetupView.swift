@@ -392,7 +392,7 @@ struct WorkspaceNameScreen: View {
             Spacer()
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("New Workspace Name")
+                Text("New Session Name")
                     .font(.system(size: 22, weight: .semibold))
                 TextField("", text: $workspaceName)
                     .textFieldStyle(.roundedBorder)
@@ -403,12 +403,12 @@ struct WorkspaceNameScreen: View {
                     .onChange(of: workspaceName) { _, newValue in
                         let trimmed = newValue.trimmingCharacters(in: .whitespaces)
                         if trimmed.count > 60 {
-                            errorMessage = "Workspace name must be 60 characters or fewer (current: \(trimmed.count))."
+                            errorMessage = "Session name must be 60 characters or fewer (current: \(trimmed.count))."
                         } else {
                             errorMessage = nil
                         }
                     }
-                Text("A workspace name could be the feature name or the GitHub issue number you are working on.")
+                Text("A session name could be the feature name or the GitHub issue number you are working on.")
                     .font(.system(size: 16))
                     .foregroundColor(.secondary)
             }
@@ -475,17 +475,17 @@ struct WorkspaceNameScreen: View {
 
         let name = workspaceName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else {
-            errorMessage = "Please provide a workspace name."
+            errorMessage = "Please provide a session name."
             return
         }
         guard name.count <= 60 else {
-            errorMessage = "Workspace name must be 60 characters or fewer (current: \(name.count))."
+            errorMessage = "Session name must be 60 characters or fewer (current: \(name.count))."
             return
         }
 
         let worktreeName = GitWorktree.uniqueWorktreeName(for: repo.name, baseName: name)
         guard !worktreeName.isEmpty else {
-            errorMessage = "Workspace name produces an empty worktree slug — try different characters."
+            errorMessage = "Session name produces an empty worktree slug — try different characters."
             return
         }
 
@@ -617,7 +617,7 @@ struct WorkspaceListScreen: View {
                 .buttonStyle(.plain)
                 Spacer()
                 Button(action: onAddWorkspace) {
-                    Label("Add Workspace", systemImage: "plus")
+                    Label("Add Session", systemImage: "plus")
                         .font(.system(size: 16, weight: .semibold))
                 }
                 .buttonStyle(.borderedProminent)
@@ -638,10 +638,10 @@ struct WorkspaceListScreen: View {
             if workspaces.isEmpty {
                 Spacer()
                 VStack(spacing: 12) {
-                    Text("No workspaces yet")
+                    Text("No sessions yet")
                         .font(.system(size: 24, weight: .medium))
                         .foregroundColor(.secondary)
-                    Text("Click \"Add Workspace\" to create one")
+                    Text("Click \"Add Session\" to create one")
                         .font(.system(size: 16))
                         .foregroundColor(.secondary)
                 }
@@ -661,7 +661,7 @@ struct WorkspaceListScreen: View {
                                         Button(role: .destructive, action: {
                                             workspaceToDelete = entry
                                         }) {
-                                            Label("Delete Workspace", systemImage: "trash")
+                                            Label("Delete Session", systemImage: "trash")
                                         }
                                     } label: {
                                         Image(systemName: "ellipsis")
@@ -807,7 +807,7 @@ struct SettingsScreen: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Worktree Directory")
                             .font(.system(size: 16, weight: .medium))
-                        Text("The directory where neetly creates git worktrees for your workspaces.")
+                        Text("The directory where neetly creates git worktrees for your sessions.")
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
                         HStack {

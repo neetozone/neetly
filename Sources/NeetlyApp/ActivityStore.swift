@@ -18,9 +18,9 @@ struct Activity: Codable, Identifiable {
     var description: String {
         switch kind {
         case .workspaceCreated:
-            return "Created workspace \(detail) for repo \(repoName)."
+            return "Created session \(detail) for repo \(repoName)."
         case .workspaceDeleted:
-            return "Deleted workspace \(detail) from repo \(repoName)."
+            return "Deleted session \(detail) from repo \(repoName)."
         case .prOpened:
             let state = prState.map { " (\($0))" } ?? ""
             return "Opened PR #\(detail)\(state) for repo \(repoName)."

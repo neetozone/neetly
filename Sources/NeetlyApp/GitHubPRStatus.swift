@@ -21,13 +21,13 @@ class GitHubPRResolver {
         let headSHA = getHeadSHA(in: worktreePath)
 
         if let dict = fetchPRView(in: worktreePath),
-           shouldAcceptPR(dict, localBranch: branch, headSHA: headSHA) {
+           shouldAcceptPR(dict, localBranch: branch, headSHA: headSHA, requireSHAForMerged: false) {
             return prInfoFromDict(dict)
         }
 
         if let branch = branch {
             let dicts = fetchPRListByBranch(branch, in: worktreePath)
-            let accepted = dicts.filter { shouldAcceptPR($0, localBranch: branch, headSHA: headSHA) }
+            let accepted = dicts.filter { shouldAcceptPR($0, localBranch: branch, headSHA: headSHA, requireSHAForMerged: false) }
             if let best = pickBest(from: accepted, headSHA: headSHA) {
                 return prInfoFromDict(best)
             }
@@ -38,7 +38,7 @@ class GitHubPRResolver {
         if let sha = headSHA, let branch = branch {
             let dicts = fetchPRListBySHA(sha, in: worktreePath)
             let exactHeadMatches = dicts.filter { ($0["headRefOid"] as? String) == sha }
-            let accepted = exactHeadMatches.filter { shouldAcceptPR($0, localBranch: branch, headSHA: headSHA) }
+            let accepted = exactHeadMatches.filter { shouldAcceptPR($0, localBranch: branch, headSHA: headSHA, requireSHAForMerged: true) }
             if let best = pickBest(from: accepted, headSHA: headSHA) {
                 return prInfoFromDict(best)
             }
@@ -49,22 +49,26 @@ class GitHubPRResolver {
 
     // MARK: - Validation
 
-    private static func shouldAcceptPR(_ dict: [String: Any], localBranch: String?, headSHA: String?) -> Bool {
+    /// `requireSHAForMerged`: when true, merged/closed PRs only attach if local
+    /// HEAD == PR's headRefOid. Used in the SHA-search fallback to avoid
+    /// matching unrelated PRs that happen to contain our commit. The branch-name
+    /// paths trust the branch identity and skip this check, so a merged PR
+    /// keeps showing after a post-merge rebase.
+    private static func shouldAcceptPR(_ dict: [String: Any], localBranch: String?, headSHA: String?, requireSHAForMerged: Bool) -> Bool {
         guard let localBranch = localBranch,
               let headRefName = dict["headRefName"] as? String,
               branchMatches(headRefName, localBranch: localBranch) else {
             return false
         }
 
-        // Merged/closed PRs only match when HEAD still points at the PR's head
-        // commit — prevents stale PRs on reused branch names or branches freshly
-        // created from main.
-        let state = dict["state"] as? String ?? ""
-        if state == "MERGED" || state == "CLOSED" {
-            guard let sha = headSHA,
-                  let prOid = dict["headRefOid"] as? String,
-                  prOid == sha else {
-                return false
+        if requireSHAForMerged {
+            let state = dict["state"] as? String ?? ""
+            if state == "MERGED" || state == "CLOSED" {
+                guard let sha = headSHA,
+                      let prOid = dict["headRefOid"] as? String,
+                      prOid == sha else {
+                    return false
+                }
             }
         }
 

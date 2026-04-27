@@ -198,7 +198,7 @@ class SessionTabBar: NSView {
                 onSelect: { [weak self] idx in self?.onSelectSession?(idx) },
                 onClose: { [weak self] idx in self?.onCloseSession?(idx) }
             )
-            tab.frame.origin = CGPoint(x: x, y: tabRowY + 2)
+            tab.frame.origin = CGPoint(x: x, y: tabRowY)
             addSubview(tab)
             tabViews.append(tab)
             x += tab.frame.width + 4
@@ -366,6 +366,10 @@ private class SessionTab: NSView {
             layer?.backgroundColor = SessionTabBar.activeTabColor.cgColor
         } else {
             layer?.backgroundColor = NSColor.clear.cgColor
+        }
+        // Active tab merges into the detail row below it — square the bottom corners.
+        if isActive {
+            layer?.maskedCorners = [.layerMaxXMaxYCorner, .layerMinXMaxYCorner]
         }
 
         // Two-line layout: repo name (top) + session name (bottom)

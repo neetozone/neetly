@@ -734,31 +734,37 @@ struct DeleteWorktreeSheet: View {
     var onDelete: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Delete \(workspaceName)?")
-                .font(.system(size: 20, weight: .semibold))
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Deleting \(workspaceName)?")
+                .font(.system(size: 22, weight: .semibold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .background(Color(white: 0.95))
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("This will delete the worktree at:")
-                    .font(.system(size: 14))
-                Text(GitWorktree.worktreePath(repoName: repoName, worktreeName: worktreeName)
-                    .replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~"))
-                    .font(.system(size: 13, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("This will delete the worktree at:")
+                        .font(.system(size: 14))
+                    Text(GitWorktree.worktreePath(repoName: repoName, worktreeName: worktreeName)
+                        .replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~"))
+                        .font(.system(size: 13, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
 
-            HStack {
-                Spacer()
-                Button("Cancel", action: onCancel)
-                    .keyboardShortcut(.cancelAction)
-                Button("Delete", role: .destructive, action: onDelete)
-                    .keyboardShortcut(.return)
-                    .buttonStyle(.borderedProminent)
+                HStack {
+                    Spacer()
+                    Button("Cancel", action: onCancel)
+                        .keyboardShortcut(.cancelAction)
+                    Button("Delete", role: .destructive, action: onDelete)
+                        .keyboardShortcut(.return)
+                        .buttonStyle(.borderedProminent)
+                }
             }
+            .padding(24)
         }
-        .padding(24)
         .frame(width: 600)
     }
 }

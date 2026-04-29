@@ -8,6 +8,17 @@ Neetly is a Mac code editor built for **web development** and designed to work w
   </a>
 </p>
 
+## Features
+
+* **Built in Browser** - each tab/session gets its own browser.
+* **Worktree enabled** - each tab/session gets its own worktree.
+* **detach session** - once the work is done, detach from the session. You can attach to the session at any time later. When you attach to the session, then Claude also resumes from where you left off with full context.
+* **See PR status** - you can see the status of the PR in the session panel.
+* **Custom layout** -  arrange your pane the way you want. Give 40% to Claude and the rest to the browser.
+* **Programmatically open tab** - after starting the server, you want to open the browser at a specific place.
+* **small codebase** - Codebase is small enough that you can make changes to meet your needs.
+* **One click diff view** - execut Cmd+D to see the diff. You can use any tool you want to see the diff.
+
 ## Installation instructions
 
 1. Download [neetly-macos.dmg](https://github.com/neetozone/neetly/releases/latest/download/neetly-macos.dmg) and open the DMG and drag `neetly.app` to Applications.

@@ -1,6 +1,6 @@
 # neetly
 
-The code editor that works with agents and is meant for **web development**.
+Neetly is a Mac code editor built for **web development** and designed to work with AI agents.
 
 <p align="center">
   <a href="https://github.com/neetozone/neetly/releases/latest/download/neetly-macos.dmg">

@@ -159,6 +159,7 @@ class SessionTabBar: NSView {
     private var tabViews: [NSView] = []
     private var detailViews: [NSView] = []
     private let plusButton = NSButton()
+    private var activeStatusColor: NSColor?
     private static let tabRowHeight: CGFloat = 40
     static let detailRowHeight: CGFloat = 33
 
@@ -218,7 +219,13 @@ class SessionTabBar: NSView {
         addSubview(plusButton)
 
         // -- Detail row (full width, for active session's SHA + PR) --
-        guard let active = sessions.first(where: { $0.isActive }) else { return }
+        guard let active = sessions.first(where: { $0.isActive }) else {
+            activeStatusColor = nil
+            needsDisplay = true
+            return
+        }
+        activeStatusColor = active.statusColor
+        needsDisplay = true
 
         let detailFont = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
         let detailBoldFont = NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .medium)
@@ -333,8 +340,14 @@ class SessionTabBar: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
-        // Detail row background — same color as active tab
-        Self.activeTabColor.setFill()
+        // Detail row background — same color as active tab. When the active
+        // tab carries a status color, match it (with the same alpha the tab
+        // uses) so the strip visually merges with the active tab.
+        if let color = activeStatusColor {
+            color.withAlphaComponent(0.45).setFill()
+        } else {
+            Self.activeTabColor.setFill()
+        }
         NSRect(x: 0, y: 1, width: bounds.width, height: Self.detailRowHeight - 1).fill()
         // Bottom border
         NSColor.separatorColor.setFill()

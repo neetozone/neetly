@@ -283,7 +283,7 @@ struct AddRepoScreen: View {
           size: 40%
           run: claude --dangerously-skip-permissions
         right:
-          run: bin/setup-mise && bin/launch --neetly
+          run: bin/setup && bin/launch --neetly
         """
     @State private var pullMain: Bool = true
     @State private var errorMessage: String?

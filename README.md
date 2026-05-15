@@ -17,7 +17,7 @@ Neetly is a Mac code editor built for **web development** and designed to work w
 * **Custom layout** -  arrange your pane the way you want. Give 40% to Claude and the rest to the browser.
 * **Programmatically open tab** - after starting the server, you want to open the browser at a specific place.
 * **small codebase** - Codebase is small enough that you can make changes to meet your needs.
-* **One click diff view** - execut Cmd+D to see the diff. You can use any tool you want to see the diff.
+* **One click diff view** - execut Cmd+1 to see the diff. You can use any tool you want to see the diff.
 
 ## Installation instructions
 
@@ -57,11 +57,11 @@ swift run neetly-app
 
 ## Viewinig the diff
 
-* Cmd+D is configured to show you the diff by executing `lazygit`. If you want to use a different tool for the diff
+* Cmd+1 is configured to show you the diff by executing `lazygit`. If you want to use a different tool for the diff
   then you can configure it in **Settings**.
-* After viewing the diff you can close the diff by executing Cmd+Z.
-* Here is what Cmd+D does: opens a new terminal in the right most pane. Executes the **diff command** specified in the **Settings**. Hits Cmd+Shift+m to maximize the window.
-* Here is what Cmd+Z does: Hits Cmd+Shift+m to get out of the full screen mode and then kills that tab.
+* After viewing the diff you can close the diff by executing Cmd+2.
+* Here is what Cmd+1 does: opens a new terminal in the right most pane. Executes the **diff command** specified in the **Settings**. Hits Cmd+Shift+m to maximize the window.
+* Here is what Cmd+2 does: Hits Cmd+Shift+m to get out of the full screen mode and then kills that tab.
 
 ## Layout Config
 

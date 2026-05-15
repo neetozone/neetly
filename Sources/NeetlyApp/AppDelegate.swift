@@ -160,8 +160,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         paneMenu.addItem(withTitle: "Maximize / Restore", action: #selector(toggleMaximize), keyEquivalent: "m")
         paneMenu.items.last?.keyEquivalentModifierMask = [.command, .shift]
         paneMenu.addItem(.separator())
-        paneMenu.addItem(withTitle: "Diff (lazygit)", action: #selector(openDiff), keyEquivalent: "d")
-        paneMenu.addItem(withTitle: "Close Diff", action: #selector(closeDiff), keyEquivalent: "z")
+        paneMenu.addItem(withTitle: "Diff (lazygit)", action: #selector(openDiff), keyEquivalent: "1")
+        paneMenu.addItem(withTitle: "Close Diff", action: #selector(closeDiff), keyEquivalent: "2")
         paneMenu.addItem(.separator())
         paneMenu.addItem(withTitle: "Next Tab", action: #selector(nextTab), keyEquivalent: "]")
         paneMenu.items.last?.keyEquivalentModifierMask = [.command, .shift]

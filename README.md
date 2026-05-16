@@ -96,7 +96,7 @@ left:
   size: 35%
   run: claude --dangerously-skip-permissions
 right:
-  run: bin/setup-mise;bin/launch --neetly
+  run: bin/setup;bin/launch --neetly
 ```
 
 The left pane takes 35% of the width, the right pane takes the remaining 65%. If you specify sizes on both sides and they don't add up to 100%, the first one wins and the second gets the remainder — no error. `size` can appear in any child of a `split` (left/right/top/bottom) and nests naturally.

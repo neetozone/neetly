@@ -8,8 +8,11 @@ class Session {
     var fileWatcher: FileWatcher?
     /// Status color for the session tab. nil = default, green = done, etc.
     var statusColor: NSColor?
-    /// Resolved GitHub PR info. nil = no PR found or not yet fetched.
-    var prInfo: GitHubPRInfo?
+    /// All GitHub PRs observed during this session's lifetime. The resolver only
+    /// surfaces the PR for the currently-checked-out branch; this list accumulates
+    /// every distinct PR (by number) seen across branch switches so users can
+    /// still navigate to PRs opened earlier in the session.
+    var prInfos: [GitHubPRInfo] = []
     /// Short commit SHA of the worktree's current HEAD.
     var commitSha: String?
     /// GitHub commit URL for the worktree's current HEAD, if the remote is GitHub.
@@ -64,44 +67,59 @@ class Session {
     }
 
     func refreshPRStatus() {
-        let previousPR = prInfo
         GitHubPRResolver.resolve(worktreePath: config.repoPath) { [weak self] info in
             guard let self = self else { return }
-            self.prInfo = info
+            guard let info = info else {
+                // Resolver found nothing for the current branch — don't clear the
+                // session's PR history; previously-opened PRs stay listed.
+                self.onStatusChanged?()
+                return
+            }
+
+            let existingIdx = self.prInfos.firstIndex { $0.number == info.number }
+            let previousState = existingIdx.map { self.prInfos[$0].state }
+
+            if let idx = existingIdx {
+                self.prInfos[idx] = info
+            } else {
+                self.prInfos.append(info)
+            }
+
+            // Setup screen still shows a single per-session PR — keep writing the
+            // latest detected one.
             SessionStore.shared.updatePRInfo(
                 repoPath: self.config.repoPath,
                 worktreeName: self.config.worktreeName,
                 prInfo: info
             )
-            if let info = info {
-                let stateLabel: String
-                switch info.state {
-                case .open:   stateLabel = "Open"
-                case .draft:  stateLabel = "Draft"
-                case .merged: stateLabel = "Merged"
-                case .closed: stateLabel = "Closed"
-                }
 
-                if previousPR == nil {
-                    // Log activity when a PR is first detected
-                    ActivityStore.shared.log(
-                        .prOpened,
-                        repoName: self.config.repoName,
-                        detail: "\(info.number)",
-                        prURL: info.url
-                    )
-                }
-
-                // Update state if it changed (e.g., Open → Merged)
-                if previousPR?.state != info.state || previousPR == nil {
-                    ActivityStore.shared.updatePRState(
-                        repoName: self.config.repoName,
-                        prNumber: "\(info.number)",
-                        state: stateLabel,
-                        url: info.url
-                    )
-                }
+            let stateLabel: String
+            switch info.state {
+            case .open:   stateLabel = "Open"
+            case .draft:  stateLabel = "Draft"
+            case .merged: stateLabel = "Merged"
+            case .closed: stateLabel = "Closed"
             }
+
+            let isNew = existingIdx == nil
+            if isNew {
+                ActivityStore.shared.log(
+                    .prOpened,
+                    repoName: self.config.repoName,
+                    detail: "\(info.number)",
+                    prURL: info.url
+                )
+            }
+
+            if isNew || previousState != info.state {
+                ActivityStore.shared.updatePRState(
+                    repoName: self.config.repoName,
+                    prNumber: "\(info.number)",
+                    state: stateLabel,
+                    url: info.url
+                )
+            }
+
             self.onStatusChanged?()
         }
     }
@@ -181,7 +199,7 @@ class SessionTabBar: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
-    func update(sessions: [(repoName: String, sessionName: String, commitSha: String?, commitURL: String?, isActive: Bool, statusColor: NSColor?, prInfo: GitHubPRInfo?, diffStats: (added: Int, deleted: Int)?)]) {
+    func update(sessions: [(repoName: String, sessionName: String, commitSha: String?, commitURL: String?, isActive: Bool, statusColor: NSColor?, prInfos: [GitHubPRInfo], diffStats: (added: Int, deleted: Int)?)]) {
         tabViews.forEach { $0.removeFromSuperview() }
         tabViews.removeAll()
         detailViews.forEach { $0.removeFromSuperview() }
@@ -266,7 +284,8 @@ class SessionTabBar: NSView {
             }
         }
 
-        if let pr = active.prInfo {
+        prURLsByButton.removeAll()
+        for pr in active.prInfos {
             let prColor = SessionTab.color(for: pr.state)
             let stateText = SessionTab.stateLabel(for: pr.state)
 
@@ -289,8 +308,13 @@ class SessionTabBar: NSView {
             prBtn.frame = NSRect(x: detailX, y: centerY, width: prBtn.intrinsicContentSize.width, height: itemHeight)
             addSubview(prBtn)
             detailViews.append(prBtn)
-            prInfoURL = URL(string: pr.url)
-            detailX += prBtn.frame.width + 12
+            if let url = URL(string: pr.url) {
+                prURLsByButton[prBtn] = url
+            }
+            detailX += prBtn.frame.width + 6
+        }
+        if !active.prInfos.isEmpty {
+            detailX += 6
         }
 
         // -- Diff stats (+N -M) --
@@ -322,14 +346,15 @@ class SessionTabBar: NSView {
     }
 
     private var commitURL: URL?
-    private var prInfoURL: URL?
+    private var prURLsByButton: [NSButton: URL] = [:]
 
     @objc private func openCommitURL(_ sender: Any?) {
         if let url = commitURL { NSWorkspace.shared.open(url) }
     }
 
     @objc private func openPRURL(_ sender: Any?) {
-        if let url = prInfoURL { NSWorkspace.shared.open(url) }
+        guard let btn = sender as? NSButton, let url = prURLsByButton[btn] else { return }
+        NSWorkspace.shared.open(url)
     }
 
     @objc private func plusClicked() {
@@ -664,7 +689,7 @@ class SessionWindowController: NSWindowController {
 
     private func refreshTabBar() {
         let tabs = sessions.enumerated().map { (i, ws) in
-            (repoName: ws.config.repoName, sessionName: ws.config.sessionName, commitSha: ws.commitSha, commitURL: ws.commitURL, isActive: i == activeIndex, statusColor: ws.statusColor, prInfo: ws.prInfo, diffStats: ws.diffStats)
+            (repoName: ws.config.repoName, sessionName: ws.config.sessionName, commitSha: ws.commitSha, commitURL: ws.commitURL, isActive: i == activeIndex, statusColor: ws.statusColor, prInfos: ws.prInfos, diffStats: ws.diffStats)
         }
         sessionTabBar.update(sessions: tabs)
     }
@@ -712,6 +737,15 @@ class SessionWindowController: NSWindowController {
 
         case "session.notify":
             let colorName = command.command ?? "green"
+
+            // "work done" on the active session is just noise — the user is
+            // already looking at it. Drop the green tint so the active tab
+            // doesn't suddenly change color on completion.
+            let isActive = activeIndex >= 0 && activeIndex < sessions.count && sessions[activeIndex] === ws
+            if isActive && colorName == "green" {
+                return nil
+            }
+
             let color: NSColor
             switch colorName {
             case "green": color = NSColor(red: 0.0, green: 0.5, blue: 0.0, alpha: 1.0)
